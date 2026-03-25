@@ -1,0 +1,66 @@
+<!-- ROW 1: SYSTEM (LEFT) + SNAPSHOT (RIGHT) -->
+<div class="grid grid-2col">
+  <div class="card">
+    <div class="card-title">System</div>
+    <table class="kv">
+      <tbody>
+        <tr>
+          <th>Processed on PM-Core (TH)</th>
+          <td>{{ processed_ts }}</td>
+        </tr>
+        <tr>
+          <th>Last collected from client (TH)</th>
+          <td>{{ collected_ts }}</td>
+        </tr>
+        <tr><th>Kernel</th><td>{{ kernel }}</td></tr>
+        <tr><th>OS</th><td>{{ os_name }}</td></tr>
+        <tr><th>Uptime</th><td>{{ uptime }}</td></tr>
+        <tr>
+          <th>IP Addresses</th>
+          <td>
+            {% if ip_list %}
+              <div class="ip-list">
+                {% for ip in ip_list %}
+                  <span class="badge">{{ ip }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th>Machine ID</th><td>{{ H.get('machine_id') or '-' }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Current Resource Utilization</div>
+    <div class="host-sub">
+      Snapshot from last report • <strong>{{ collected_ts }}</strong>
+    </div>
+    <div class="donut-grid">
+      <!-- CPU donut -->
+      <div class="donut-box">
+        <canvas id="cpuDonut"></canvas>
+        <div class="donut-center">{{ '%.0f' % cpu_pct }}%</div>
+        <div class="donut-sub">CPU Usage</div>
+      </div>
+      <!-- Memory donut -->
+      <div class="donut-box">
+        <canvas id="memDonut"></canvas>
+        <div class="donut-center">{{ '%.0f' % mem_pct }}%</div>
+        <div class="donut-sub">Memory Usage</div>
+      </div>
+      <!-- Disk donut -->
+      <div class="donut-box">
+        <canvas id="diskDonut"></canvas>
+        <div class="donut-center">{{ '%.0f' % disk_pct }}%</div>
+        <div class="donut-sub">{{ disk_label or 'Disk Usage (/)' }}</div>
+      </div>
+    </div>
+    <p style="margin-top:14px;font-size:13px;opacity:.75;">* ค่านี้เป็น snapshot ล่าสุดจาก client</p>
+  </div>
+</div>
+
+

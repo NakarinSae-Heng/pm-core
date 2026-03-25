@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="th" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>Preventive Maintenance Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    /* ===== Theme tokens ===== */
+    :root{
+      --bg:#0f141b; --text:#e5e7eb; --muted:#a1a1aa; --shadow:0 8px 30px rgba(0,0,0,.45);
+      --panel:#121820; --border:#26313f;
+      --chip:#1c2532; --chipText:#e5e7eb;
+      --up:#35c48a; --warn:#e5c158; --deg:#ff5d5d; --off:#9aa3ad;
+      --kpi1:#2b3a67; --kpi2:#1f5032; --kpi3:#5a370f; --kpi4:#5a1720; --kpi5:#3b4856;
+      --btn:#2563eb; --btn-fg:#e5e7eb; --btn-alt:#1b2430; --btn-alt-fg:#e5e7eb;
+      --donut:#35c48a; --track:#2f3540;
+      --link:#8cb4ff; --link-hover:#b3ccff;
+      --input:#0f141b;
+      --rowHover:#0c1117;
+
+      --modalBg: rgba(0,0,0,.55);
+      --modalPanel: var(--panel);
+      --alert:#eab308;
+    }
+
+    /* ===== Light palette (คอนทราสต์อ่านง่าย) ===== */
+    [data-theme="light"]{
+      --bg:#f9fafb; --text:#0f172a; --muted:#475569;
+      --panel:#ffffff; --border:#cbd5e1;
+      --chip:#f8fafc; --chipText:#0f172a;
+      --up:#16a34a; --warn:#d97706; --deg:#dc2626; --off:#64748b;
+      --kpi1:#eef2ff; --kpi2:#ecfdf5; --kpi3:#fde7c7; --kpi4:#fecaca; --kpi5:#e2e8f0;
+      --btn:#2563eb; --btn-fg:#fff; --btn-alt:#f3f4f6; --btn-alt-fg:#111827;
+      --donut:#15803d; --track:#e5e7eb;
+      --link:#1d4ed8; --link-hover:#1e40af;
+      --input:#fff; --rowHover:#f8fafc;
+      --modalBg: rgba(0,0,0,.25); --modalPanel:#fff;
+      --alert:#ca8a04;
+    }
+
+    /* ===== Base ===== */
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,'Sarabun',Arial;background:var(--bg);color:var(--text)}
+    a{color:var(--link);text-decoration:none;font-weight:600}
+    a:hover{color:var(--link-hover);text-decoration:underline}
+
+    .bar{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:16px 12px 8px;flex-wrap:wrap}
+    h1{margin:0;font-weight:800;white-space:nowrap;font-size:clamp(28px,3.2vw,42px)}
+
+    .badges{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .chip{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px 12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px;color:var(--text)}
+
+    .btn{background:var(--btn-alt);color:var(--btn-alt-fg);border:1px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;box-shadow:var(--shadow);transition:filter .15s,background .15s,border-color .15s}
+    .btn:hover{filter:brightness(1.05)}
+    .btn.primary{background:var(--btn);color:var(--btn-fg);border-color:transparent}
+
+    .kpis{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:16px;padding:0 12px 12px}
+    .kpi{border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;background:var(--panel);border:1px solid var(--border);cursor:pointer;user-select:none}
+    .kpi.active{outline:2px solid var(--btn)}
+    .kpi.total{background:linear-gradient(135deg,var(--kpi1),transparent)}
+    .kpi.up{background:linear-gradient(135deg,var(--kpi2),transparent)}
+    .kpi.warn{background:linear-gradient(135deg,var(--kpi3),transparent)}
+    .kpi.deg{background:linear-gradient(135deg,var(--kpi4),transparent)}
+    .kpi.off{background:linear-gradient(135deg,var(--kpi5),transparent)}
+    .kpi .num{font-size:48px;font-weight:800}
+    .kpi .label{opacity:.9}
+
+    .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 12px 12px}
+    .pill{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:8px}
+    .input{background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:300px}
+
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{font-size:14px;text-align:left;padding:12px;border-bottom:1px solid var(--border)}
+    tbody td{padding:16px 12px;border-bottom:1px dashed var(--border)}
+    tbody tr:hover{background:var(--rowHover)}
+    .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:middle}
+    .dot.up{background:var(--up)} .dot.warn{background:var(--warn)} .dot.deg{background:var(--deg)} .dot.off{background:var(--off)}
+    .donut{--p:0;width:56px;height:56px;border-radius:50%;
+      background:conic-gradient(var(--donut) calc(var(--p)*1%), var(--track) 0);
+      display:grid;place-items:center;color:var(--text);font-weight:700;box-shadow:inset 0 0 0 3px rgba(0,0,0,.06)}
+    .donut span{font-size:12px}
+    .sub{color:var(--muted);font-size:12px;margin-top:6px}
+    .empty{color:var(--muted);padding:18px}
+    .hidden{display:none}
+
+    /* ===== Alert badge (เล็ก) ===== */
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(250,204,21,.12);border:1px solid rgba(250,204,21,.35);color:var(--alert);font-size:12px}
+
+    /* ===== Modal ===== */
+    .modal-backdrop{position:fixed;inset:0;background:var(--modalBg);display:none;align-items:center;justify-content:center;z-index:999}
+    .modal{background:var(--modalPanel);color:var(--text);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);width:min(920px,96%);max-height:88vh;overflow:auto}
+    .modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--modalPanel)}
+    .modal .body{padding:16px}
+    .modal .footer{display:flex;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--modalPanel)}
+
+    .xbtn{
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+    }
+    [data-theme="dark"] .xbtn:hover{ background: rgba(255,255,255,.10); border-color:#5b6a7d; }
+    [data-theme="light"] .xbtn{ background:#f3f4f6; color:#111827; border-color:#cbd5e1; }
+    [data-theme="light"] .xbtn:hover{ background:#e5e7eb; border-color:#94a3b8; }
+    .btn.primary:focus, .xbtn:focus { outline: 2px solid #5b9aff; outline-offset: 2px; }
+
+    .stepper{display:flex;gap:8px;margin-bottom:10px}
+    .step{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel)}
+    .grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .card{border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:12px;box-shadow:var(--shadow)}
+    .select-list{border:1px solid var(--border);border-radius:10px;padding:10px;min-height:240px;background:var(--panel)}
+    .hint{color:var(--muted);font-size:12px}
+    .tag{display:inline-block;border:1px solid var(--border);padding:4px 8px;border-radius:999px;margin:2px;background:var(--panel)}
+    .progress{font-size:12px;color:var(--muted)}
+
+    @media (max-width: 1100px){
+      .kpis{grid-template-columns:repeat(2,minmax(180px,1fr))}
+      .grid2{grid-template-columns:1fr}
+      .grid3{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Top bar ===== -->
+  <div class="bar">
+    <h1>Preventive Maintenance Dashboard</h1>
+    <div class="badges">
+      <!-- ใส่ id ไว้ให้ JS มาอัปเดตจาก /api/hosts -->
+      <span class="chip" id="lastRefreshChip">Last refresh: {{ last_refresh_th or '-' }}</span>
+      <span class="chip" id="cycleChip">Cycle: {{ cycle_name or '-' }}</span>
+
+      <form id="closeForm" method="post" style="display:inline;">
+        <input type="hidden" name="action" value="close_cycle">
+        <button class="btn" id="closeBtn" type="button">🔒 Close Cycle</button>
+      </form>
+
+      <!-- ปุ่มนี้: เป็นตัวบอกสถานะเท่านั้น ห้ามกด -->
+      <button class="btn" id="themeBtn" type="button"
+              disabled
+              aria-disabled="true"
+              style="pointer-events:none;cursor:default;opacity:.9;">
+        Dark
+      </button>
+
+      <!-- ปุ่มนี้: ไว้สลับธีมจริง -->
+      <button class="btn" id="themeBtn2" type="button">🌻 Toggle Light</button>
+
+      <button class="btn" id="pmcoreBtn" type="button">🖥️ PM-Core Health</button>
+      <button class="btn primary" id="genBtn" type="button">📄 Generate Report</button>
+      <button class="btn" id="statusBtn" type="button">🛈 Status Info</button>
+
+      <!-- Logout ด้านขวาสุด -->
+      <a class="btn" href="/logout" title="Logout">⎋ Logout</a>
+    </div>
+  </div>
+
+  <!-- ===== KPI Cards ===== -->
+  <div class="kpis">
+    <div class="kpi total" data-filter="">
+      <div class="num" id="kpiTotal">{{ total_count }}</div>
+      <div class="label">Total</div>
+    </div>
+    <div class="kpi up" data-filter="Up">
+      <div class="num" id="kpiUp">{{ up_count }}</div>
+      <div class="label">Up</div>
+    </div>
+    <div class="kpi warn" data-filter="Warning">
+      <div class="num" id="kpiWarning">{{ warning_count }}</div>
+      <div class="label">Warning</div>
+    </div>
+    <div class="kpi deg" data-filter="Degraded">
+      <div class="num" id="kpiDegraded">{{ degraded_count }}</div>
+      <div class="label">Degraded</div>
+    </div>
+    <div class="kpi off" data-filter="Offline">
+      <div class="num" id="kpiOffline">{{ offline_count }}</div>
+      <div class="label">Offline</div>
+    </div>
+  </div>
+
+  <!-- ===== Controls ===== -->
+  <div class="controls">
+    <div class="pill">🔎 ค้นหา Hostname:
+      <input id="searchInput" class="input" type="text" placeholder="พิมพ์ชื่อ hostname...">
+    </div>
+    <div class="pill">
+      <input id="autoRefreshChk" type="checkbox">
+      <label for="autoRefreshChk" style="cursor:pointer;">Auto Refresh (ทุก 5 นาที)</label>
+    </div>
+  </div>
+
+  <!-- ===== Table ===== -->
+  <div style="padding:0 12px 20px">
+    <table id="hostTable">
+      <thead>
+        <tr>
+          <th style="width:28%">Hostname</th>
+          <th style="width:16%">Status</th>
+          <th style="width:18%">CPU Usage</th>
+          <th style="width:18%">Memory Usage</th>
+          <th style="width:20%">Uptime</th>
+        </tr>
+      </thead>
+      <!-- ใส่ id ให้ tbody เพื่อให้ JS เติมได้ -->
+      <tbody id="hostTbody">
+        {% for r in rows %}
+        <tr data-host="{{ r.hostname }}" data-status="{{ r.status_eff }}">
+          <td><a href="{{ url_for('detail', hostname=r.hostname) }}">{{ r.hostname }}</a></td>
+          <td>
+            {% set s = r.status_eff %}
+            <span class="dot {% if s=='Up' %}up{% elif s=='Warning' %}warn{% elif s=='Degraded' %}deg{% else %}off{% endif %}"></span>
+            {{ s or '-' }}
+          </td>
+          <td>
+            <div class="donut" style="--p: {{ (r.cpu or 0)|round(0,'floor') }};">
+              <span>{{ (r.cpu or 0)|round(0,'floor') }}%</span>
+            </div>
+          </td>
+          <td>
+            <div class="donut" style="--p: {{ (r.mem or 0)|round(0,'floor') }};">
+              <span>{{ (r.mem or 0)|round(0,'floor') }}%</span>
+            </div>
+          </td>
+          <td>
+            <div>{{ r.uptime_human or '3 minutes' }}</div>
+            <div class="sub">Collected (TH): {{ r.collected_th or '-' }} · Age: {{ r.age_human or '-' }}</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="emptyNotice" class="empty hidden">ไม่พบเครื่องที่ตรงกับเงื่อนไข</div>
+  </div>
+
+  <!-- ================== MODALS ================== -->
+
+  <!-- PM-Core Health Modal -->
+  <div id="pmcoreBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pmcoreTitle">
+      <header>
+        <h3 id="pmcoreTitle" style="margin:0">PM-Core Health (Preview)</h3>
+        <button class="xbtn" onclick="closePMCore()">✕ Close</button>
+      </header>
+      <div class="body">
+        <div class="badge">โครงพร้อมต่อยอด API — ตอนนี้เป็นตัวอย่างค่า</div>
+        <div class="grid3" style="margin-top:12px;">
+          <div class="card"><div class="hint">CPU</div><div class="donut" style="--p: 0"><span>—</span></div></div>
+          <div class="card"><div class="hint">Memory</div><div class="donut" style="--p: 0"><span>—</span></div></div>
+          <div class="card"><div class="hint">Disk</div><div class="donut" style="--p: 0"><span>—</span></div></div>
+        </div>
+        <div class="grid3" style="margin-top:12px;">
+          <div class="card">
+            <div class="hint">DB Connections</div>
+            <div style="font-size:20px;font-weight:700">—</div>
+          </div>
+          <div class="card">
+            <div class="hint">Task Queue</div>
+            <div style="font-size:20px;font-weight:700">—</div>
+          </div>
+          <div class="card">
+            <div class="hint">Gunicorn Workers</div>
+            <div style="font-size:20px;font-weight:700">—</div>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          * ภายหลังสามารถผูกปุ่ม <b>Refresh</b> ให้เรียก API เช่น <code>/api/pmcore_health</code> แล้วอัปเดตค่าใน modal นี้ได้
+        </div>
+      </div>
+      <div class="footer">
+        <div>
+          <button class="btn" onclick="closePMCore()">Close</button>
+        </div>
+        <div>
+          <a class="btn" href="/pmcore">Go to detail page →</a>
+          <button class="btn primary" onclick="alert('API สำหรับดึงสุขภาพ PM-Core จะใส่ใน phase ถัดไป');">Refresh</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Info Modal -->
+  <div id="statusBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="statusTitle">
+      <header>
+        <h3 id="statusTitle" style="margin:0">Status Info</h3>
+        <button class="xbtn" onclick="closeStatusInfo()">✕ Close</button>
+      </header>
+
+      <div class="body">
+        <div class="stepper" style="gap:6px; margin-bottom:14px;">
+          <button class="btn" id="tabTH"  onclick="setStatusTab('th')">ภาษาไทย</button>
+          <button class="btn" id="tabEN"  onclick="setStatusTab('en')">English</button>
+          <button class="btn" id="tabLG"  onclick="setStatusTab('lg')">Legend</button>
+        </div>
+
+        <!-- TH pane -->
+        <div id="paneTH">
+          <div class="grid2">
+            <div>
+              <div class="step">รอบ (Cycle): <b>{{ cycle_name or '-' }}</b></div>
+              <div class="step">อัปเดตล่าสุด: <b>{{ last_refresh_th or '-' }}</b></div>
+              <ul style="margin-top:10px;">
+                <li>รวมทั้งหมด (Total): <b>{{ total_count }}</b></li>
+                <li><span class="dot up"></span> พร้อมใช้งาน (Up): <b>{{ up_count }}</b></li>
+                <li><span class="dot warn"></span> เตือน (Warning): <b>{{ warning_count }}</b></li>
+                <li><span class="dot deg"></span> เสื่อม/วิกฤต (Degraded): <b>{{ degraded_count }}</b></li>
+                <li><span class="dot off"></span> ออฟไลน์ (Offline): <b>{{ offline_count }}</b></li>
+              </ul>
+            </div>
+            <div>
+              <div class="step">คำอธิบายค่า Age</div>
+              <div class="hint">
+                <b>Age</b> = ระยะเวลาที่ผ่านมาตั้งแต่เครื่องนั้นส่งรายงานครั้งล่าสุด (timestamp ใน DB: <code>processed_utc</code>)<br>
+                - Age น้อย = ข้อมูลสดใหม่<br>
+                - หาก Age ยาวผิดปกติ → อาจเข้าเงื่อนไข <span class="dot off"></span> Offline
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EN pane -->
+        <div id="paneEN" class="hidden">
+          <div class="grid2">
+            <div>
+              <div class="step">Cycle: <b>{{ cycle_name or '-' }}</b></div>
+              <div class="step">Last refresh (TH): <b>{{ last_refresh_th or '-' }}</b></div>
+              <ul style="margin-top:10px;">
+                <li>Total: <b>{{ total_count }}</b></li>
+                <li><span class="dot up"></span> Up: <b>{{ up_count }}</b></li>
+                <li><span class="dot warn"></span> Warning: <b>{{ warning_count }}</b></li>
+                <li><span class="dot deg"></span> Degraded: <b>{{ degraded_count }}</b></li>
+                <li><span class="dot off"></span> Offline: <b>{{ offline_count }}</b></li>
+              </ul>
+            </div>
+            <div>
+              <div class="step">About “Age”</div>
+              <div class="hint">
+                <b>Age</b> = elapsed time since the last received report for that host (from <code>processed_utc</code>).<br>
+                - Shorter age = fresher data.<br>
+                - Large age may indicate <span class="dot off"></span> Offline condition.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend pane -->
+        <div id="paneLG" class="hidden">
+          <div class="step" style="margin-bottom:10px;">Legend / เกณฑ์สถานะ (ตัวอย่างไอคอนจริงในระบบ)</div>
+          <ul style="line-height:1.9">
+            <li>🟢 <span class="dot up"></span> <b>Up</b> — เครื่องออนไลน์ ทำงานปกติ (เช่น CPU/Mem/Disk ต่ำกว่า ~75%)</li>
+            <li>🟡 <span class="dot warn"></span> <b>Warning</b> — มีสัญญาณเสี่ยง (ค่าสูงสุดของ CPU/Mem/Disk ~75–89%)</li>
+            <li>🔴 <span class="dot deg"></span> <b>Degraded</b> — ภาวะวิกฤต/เสื่อม (ค่าสูงสุด ≥ ~90%)</li>
+            <li>⚪ <span class="dot off"></span> <b>Offline</b> — ไม่ได้รับรายงานเกินระยะเวลาที่กำหนด (Age ยาวผิดปกติ)</li>
+          </ul>
+          <div class="hint">** เกณฑ์เปอร์เซ็นต์เป็นตัวอย่าง สามารถปรับตามเกณฑ์จริงของระบบคุณได้ใน backend **</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div></div>
+        <div>
+          <button class="btn" onclick="closeStatusInfo()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Report Wizard Modal -->
+  <div id="reportBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wizTitle">
+      <header>
+        <h3 id="wizTitle" style="margin:0">Generate Preventive Maintenance Report</h3>
+        <button class="xbtn" onclick="closeReportWizard()">✕ Close</button>
+      </header>
+      <div class="body">
+        <div class="stepper">
+          <span class="step" id="wizStep1">Step 1 — Report Type</span>
+          <span class="step" id="wizStep2">Step 2 — Output Format</span>
+          <span class="step" id="wizStep3">Step 3 — Generate</span>
+        </div>
+
+        <div id="wizPage1">
+          <div style="margin-bottom:8px;">เลือกชนิดรายงาน:</div>
+          <label><input type="radio" name="wizType" value="summary" checked> <b>Summary</b> — สรุปภาพรวมทุกเครื่อง</label><br>
+          <label><input type="radio" name="wizType" value="select"> <b>Select Server</b> — เลือกเครื่องเฉพาะ</label><br>
+          <label><input type="radio" name="wizType" value="full"> <b>Full Report</b> — รายละเอียดเต็มทุกเครื่อง</label>
+          <div id="hostSelectWrap" class="select-list hidden" style="margin-top:10px;">
+            <div class="hint" style="margin-bottom:6px;">เลือก Hostname (กดหลายเครื่องได้)</div>
+            <div id="hostSelect" style="display:flex;flex-wrap:wrap;gap:6px;">
+              {% for r in rows %}
+                <label class="tag"><input type="checkbox" class="hs" value="{{ r.hostname }}"> {{ r.hostname }}</label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div id="wizPage2" class="hidden">
+          <div style="margin-bottom:8px;">เลือกรูปแบบไฟล์:</div>
+          <label><input type="radio" name="wizFmt" value="pdf" checked> PDF</label>
+          <div class="hint">* ขณะนี้รองรับ PDF เป็นหลัก</div>
+        </div>
+
+        <div id="wizPage3" class="hidden">
+          <div class="grid2">
+            <div>
+              <div><b>สรุปการตั้งค่า</b></div>
+              <div id="wizSummary" class="select-list" style="min-height:auto"></div>
+              <div class="progress" id="wizProgress" style="margin-top:8px;"></div>
+            </div>
+            <div>
+              <div><b>ผลลัพธ์</b></div>
+              <div id="wizResult" class="select-list" style="min-height:auto"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="footer">
+        <div>
+          <button class="btn" onclick="closeReportWizard()">Exit</button>
+          <button class="btn" id="wizPrevBtn" onclick="wizPrev()" disabled>← Back</button>
+        </div>
+        <div>
+          <button class="btn primary" id="wizNextBtn" onclick="wizNext()">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ============== END MODALS ============== -->
+
+  <script>
+    // ========= Theme persist =========
+    (function(){
+      var saved = localStorage.getItem('pmTheme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+
+      // ปุ่มสถานะ (ห้ามกด)
+      var themeBtn = document.getElementById('themeBtn');
+      themeBtn.innerText = (saved === 'dark') ? 'Dark' : 'Light';
+      themeBtn.disabled = true;
+      themeBtn.style.pointerEvents = 'none';
+      themeBtn.style.cursor = 'default';
+
+      // ปุ่ม toggle จริง
+      var themeBtn2 = document.getElementById('themeBtn2');
+      themeBtn2.innerText = (saved === 'dark') ? '🌻 Toggle Light' : '🌙 Toggle Dark';
+
+      function toggleTheme(){
+        var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+        var next = (cur === 'dark') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('pmTheme', next);
+        themeBtn.innerText = (next === 'dark') ? 'Dark' : 'Light';
+        themeBtn2.innerText = (next === 'dark') ? '🌻 Toggle Light' : '🌙 Toggle Dark';
+      }
+      themeBtn2.onclick = toggleTheme;
+    })();
+
+    // ========= KPI filter + search =========
+    (function(){
+      window.__curFilter = ""; // เก็บไว้ให้ฟังก์ชัน loadHostsFromAPI ใช้ด้วย
+      var kpis = document.querySelectorAll('.kpi');
+      kpis.forEach(function(k){
+        k.addEventListener('click', function(){
+          var f = k.getAttribute('data-filter');
+          if(window.__curFilter === f){ window.__curFilter=""; }
+          else { window.__curFilter=f; }
+          kpis.forEach(function(x){ x.classList.toggle('active', x.getAttribute('data-filter')===window.__curFilter); });
+          applyFilter();
+        });
+      });
+
+      var search = document.getElementById('searchInput');
+      var debTimer = null;
+      search.addEventListener('input', function(){
+        clearTimeout(debTimer);
+        debTimer = setTimeout(applyFilter, 180);
+      });
+
+      window.applyFilter = function(){
+        var q = (document.getElementById('searchInput').value || "").toLowerCase().trim();
+        var rows = document.querySelectorAll('#hostTable tbody tr');
+        var visible = 0;
+        rows.forEach(function(r){
+          var name = (r.getAttribute('data-host') || "").toLowerCase();
+          var st = r.getAttribute('data-status') || "";
+          var bySearch = (!q || name.indexOf(q) >= 0);
+          var byStatus = (!window.__curFilter || st === window.__curFilter);
+          var show = bySearch && byStatus;
+          r.style.display = show ? "" : "none";
+          if(show) visible++;
+        });
+        document.getElementById('emptyNotice').classList.toggle('hidden', visible>0);
+      };
+
+      applyFilter();
+    })();
+
+    // ========= Auto Refresh (every 5 minutes) =========
+    (function(){
+      var chk = document.getElementById('autoRefreshChk');
+      var KEY = 'pmAutoRefresh';
+      var on = localStorage.getItem(KEY) === '1';
+      chk.checked = on;
+      var timer = null;
+
+      function arm(){
+        if(timer){ clearInterval(timer); timer=null; }
+        if(chk.checked){
+          timer = setInterval(function(){ window.location.reload(); }, 5*60*1000);
+        }
+      }
+      chk.addEventListener('change', function(){
+        localStorage.setItem(KEY, chk.checked ? '1' : '0');
+        arm();
+      });
+      arm();
+    })();
+
+    // ========= Close Cycle confirm =========
+    (function(){
+      var btn = document.getElementById('closeBtn');
+      btn.addEventListener('click', function(){
+        if(confirm('ยืนยันปิดรอบนี้หรือไม่? (จะสร้างรอบใหม่อัตโนมัติ)')){
+          document.getElementById('closeForm').submit();
+        }
+      });
+    })();
+
+    // ========= PM-Core modal =========
+    function openPMCore(){ document.getElementById('pmcoreBackdrop').style.display='flex'; }
+    function closePMCore(){ document.getElementById('pmcoreBackdrop').style.display='none'; }
+    document.getElementById('pmcoreBtn').addEventListener('click', openPMCore);
+
+    // ========= Status Info modal =========
+    function openStatusInfo(){ document.getElementById('statusBackdrop').style.display='flex'; }
+    function closeStatusInfo(){ document.getElementById('statusBackdrop').style.display='none'; }
+    document.getElementById('statusBtn').addEventListener('click', openStatusInfo);
+
+    function setStatusTab(key){
+      var panes = {th:'paneTH', en:'paneEN', lg:'paneLG'};
+      Object.keys(panes).forEach(function(k){
+        document.getElementById(panes[k]).classList.toggle('hidden', k!==key);
+        var btn = document.getElementById('tab'+k.toUpperCase());
+        if(btn) btn.classList.toggle('primary', k===key);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function(){ setStatusTab('th'); });
+
+    // ========= Report Wizard modal =========
+    var wizStep = 1;
+    function openReportWizard(){ wizStep = 1; setWizPage(); document.getElementById('reportBackdrop').style.display='flex'; }
+    function closeReportWizard(){ document.getElementById('reportBackdrop').style.display='none'; }
+    document.getElementById('genBtn').addEventListener('click', openReportWizard);
+
+    function setWizPage(){
+      document.getElementById('wizPage1').classList.toggle('hidden', wizStep!==1);
+      document.getElementById('wizPage2').classList.toggle('hidden', wizStep!==2);
+      document.getElementById('wizPage3').classList.toggle('hidden', wizStep!==3);
+      document.getElementById('wizPrevBtn').disabled = (wizStep===1);
+      document.getElementById('wizNextBtn').innerText = (wizStep===3)?'Generate':'Next →';
+      var selType = document.querySelector('input[name="wizType"]:checked')?.value || 'summary';
+      document.getElementById('hostSelectWrap').classList.toggle('hidden', selType!=='select');
+      if(wizStep===3){
+        var fmt = document.querySelector('input[name="wizFmt"]:checked')?.value || 'pdf';
+        var cycle = "{{ cycle_name or '-' }}";
+        var html = '';
+        html += '<div>Type: <b>'+selType.toUpperCase()+'</b></div>';
+        if(selType==='select'){
+          var hosts = Array.from(document.querySelectorAll('.hs:checked')).map(x=>x.value);
+          html += '<div>Hosts: '+ (hosts.length? hosts.join(', ') : '-') +'</div>';
+        }
+        html += '<div>Format: '+fmt.toUpperCase()+'</div>';
+        html += '<div>Cycle: '+cycle+'</div>';
+        document.getElementById('wizSummary').innerHTML = html;
+        document.getElementById('wizResult').innerHTML = '';
+        document.getElementById('wizProgress').innerText = '';
+      }
+    }
+    function wizNext(){
+      var selType = document.querySelector('input[name="wizType"]:checked')?.value || 'summary';
+      if(wizStep===1){
+        if(selType==='select'){
+          var hosts = Array.from(document.querySelectorAll('.hs:checked'));
+          if(hosts.length===0){ alert('กรุณาเลือกอย่างน้อย 1 เครื่อง'); return; }
+        }
+        wizStep=2; setWizPage(); return;
+      }
+      if(wizStep===2){ wizStep=3; setWizPage(); return; }
+      if(wizStep===3){
+        var fmt = document.querySelector('input[name="wizFmt"]:checked')?.value || 'pdf';
+        var payload = {type: selType, cycle: "{{ cycle_name or '' }}"};
+        if(selType==='select'){
+          payload.hosts = Array.from(document.querySelectorAll('.hs:checked')).map(x=>x.value).join(',');
+        }
+        document.getElementById('wizProgress').innerText = 'กำลังสร้างไฟล์รายงาน…';
+        fetch('/api/export_report', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(j=>{
+          if(j.ok){
+            document.getElementById('wizProgress').innerText = 'สำเร็จ';
+            var link = document.createElement('a');
+            link.className='btn primary';
+            link.href = '/download?path='+encodeURIComponent(j.path);
+            link.textContent = '⬇️ ดาวน์โหลด: '+(j.filename||'report.pdf');
+            link.style.display='inline-block';
+            document.getElementById('wizResult').innerHTML='';
+            document.getElementById('wizResult').appendChild(link);
+          }else{
+            document.getElementById('wizProgress').innerText = 'เกิดข้อผิดพลาด';
+            document.getElementById('wizResult').innerText = (j.error||'Export failed');
+          }
+        }).catch(e=>{
+          document.getElementById('wizProgress').innerText = 'เกิดข้อผิดพลาด';
+          document.getElementById('wizResult').innerText = e.toString();
+        });
+      }
+    }
+    function wizPrev(){ if(wizStep>1){ wizStep--; setWizPage(); } }
+    document.addEventListener('change', function(e){
+      if(e.target && e.target.name==='wizType'){ setWizPage(); }
+    });
+
+    // ========= NEW: ดึงข้อมูลจาก /api/hosts แล้วอัปเดตหน้า =========
+    async function loadHostsFromAPI(){
+      try{
+        const res = await fetch('/api/hosts', {cache:'no-store'});
+        if(!res.ok) return;
+        const j = await res.json();
+
+        // 1) อัปเดต chip ด้านบน
+        if(j.last_refresh_th){
+          const chip = document.getElementById('lastRefreshChip');
+          if(chip) chip.textContent = 'Last refresh: ' + j.last_refresh_th;
+        }
+        if(j.cycle){
+          const chip2 = document.getElementById('cycleChip');
+          if(chip2) chip2.textContent = 'Cycle: ' + j.cycle;
+        }
+
+        // 2) อัปเดต KPI
+        if(j.counts){
+          document.getElementById('kpiTotal').textContent    = j.counts.total ?? 0;
+          document.getElementById('kpiUp').textContent       = j.counts.up ?? 0;
+          document.getElementById('kpiWarning').textContent  = j.counts.warning ?? 0;
+          document.getElementById('kpiDegraded').textContent = j.counts.degraded ?? 0;
+          document.getElementById('kpiOffline').textContent  = j.counts.offline ?? 0;
+        }
+
+        // 3) เติมตาราง
+        const list = j.data || j.hosts || [];
+        const tb = document.getElementById('hostTbody');
+        if(!tb) return;
+        tb.innerHTML = '';  // เคลียร์ของเก่าแล้วเติมใหม่
+
+        list.forEach(function(h){
+          const hostname = h.hostname || h.display_name || '-';
+          // status จาก API เป็นตัวพิมพ์เล็ก ใช้เป็นชื่อสวยๆ
+          const stRaw = (h.status || 'offline').toString();
+          const st =
+            stRaw.toLowerCase()==='up' ? 'Up' :
+            stRaw.toLowerCase()==='warning' ? 'Warning' :
+            stRaw.toLowerCase()==='degraded' ? 'Degraded' :
+            'Offline';
+
+          const cpu = Math.floor(h.cpu_usage ?? 0);
+          const mem = Math.floor(h.mem_usage ?? 0);
+          const uptime = h.uptime || '-';
+          const collected = h.collected_th || '-';
+          const age = formatAge(h.age_hours);
+
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-host', hostname);
+          tr.setAttribute('data-status', st);
+
+          tr.innerHTML = `
+            <td><a href="/detail/${encodeURIComponent(hostname)}">${hostname}</a></td>
+            <td>
+              <span class="dot ${st==='Up'?'up':st==='Warning'?'warn':st==='Degraded'?'deg':'off'}"></span>
+              ${st}
+            </td>
+            <td>
+              <div class="donut" style="--p: ${cpu};">
+                <span>${cpu}%</span>
+              </div>
+            </td>
+            <td>
+              <div class="donut" style="--p: ${mem};">
+                <span>${mem}%</span>
+              </div>
+            </td>
+            <td>
+              <div>${uptime}</div>
+              <div class="sub">Collected (TH): ${collected} · Age: ${age}</div>
+            </td>
+          `;
+          tb.appendChild(tr);
+        });
+
+        // 4) ถ้ามี host ที่โหลดมา ให้ไปอัปเดต host list ใน wizard ด้วย (เฉพาะหน้าเปิดครั้งนี้)
+        const hostSelect = document.getElementById('hostSelect');
+        if(hostSelect && list.length){
+          hostSelect.innerHTML = '';
+          list.forEach(function(h){
+            const hn = h.hostname || h.display_name || '-';
+            const lbl = document.createElement('label');
+            lbl.className = 'tag';
+            lbl.innerHTML = `<input type="checkbox" class="hs" value="${hn}"> ${hn}`;
+            hostSelect.appendChild(lbl);
+          });
+        }
+
+        // 5) หลังเติมตารางแล้ว ให้ applyFilter อีกรอบให้ตรงกับ KPI + search ปัจจุบัน
+        if(typeof window.applyFilter === 'function'){
+          window.applyFilter();
+        }
+
+      }catch(e){
+        console.warn('loadHostsFromAPI error', e);
+      }
+    }
+
+    function formatAge(hoursVal){
+      if(hoursVal == null) return '-';
+      const h = Number(hoursVal);
+      if(isNaN(h)) return '-';
+      if(h < 1){
+        const m = Math.floor(h*60);
+        return m + ' mins';
+      }
+      if(h < 24){
+        return h.toFixed(1) + ' hrs';
+      }
+      const d = Math.floor(h/24);
+      return d + ' days';
+    }
+
+    // เรียกตอนโหลดหน้า
+    document.addEventListener('DOMContentLoaded', function(){
+      loadHostsFromAPI();
+    });
+  </script>
+</body>
+</html>
+

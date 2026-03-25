@@ -1,0 +1,61 @@
+<!-- ROW 4: MOUNTS -->
+<div class="card" style="margin-top:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div id="mountsTitle" class="card-title">Top 5 Mounts by Usage (%)</div>
+    <button id="toggleMountsBtn">Show all mounts ({{ (mounts_full or [])|length }})</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="mounts">
+      <thead>
+        <tr>
+          <th style="width:130px">Status</th>
+          <th>mountpoint</th>
+          <th style="width:120px">fstype</th>
+          <th style="width:110px">Usage (%)</th>
+          <th>note</th>
+          <th style="width:120px">size</th>
+          <th style="width:120px">used</th>
+          <th style="width:120px">avail</th>
+        </tr>
+      </thead>
+      <tbody id="mountsBody">
+        {% set top = (mounts_top5 or []) %}
+        {% for m in top %}
+          {% set pct = (m.get('used_pct_num') if m.get('used_pct_num') is not none else (m.get('used_pct','0')|replace('%','')|float)) %}
+          {% if pct >= 100 %}
+            {% set stat = 'Full' %}
+            {% set cls = 'red' %}
+          {% elif pct >= 90 %}
+            {% set stat = 'Critical' %}
+            {% set cls = 'red' %}
+          {% elif pct >= 80 %}
+            {% set stat = 'Degraded' %}
+            {% set cls = 'amber' %}
+          {% else %}
+            {% set stat = 'OK' %}
+            {% set cls = 'green' %}
+          {% endif %}
+          <tr>
+            <td><span class="status-dot {{ cls }}"></span> {{ stat }}</td>
+            <td>{{ m.mountpoint }}</td>
+            <td>{{ m.fstype }}</td>
+            <td>{{ '%.1f' % pct }}%</td>
+            <td>{{ m.note or '' }}</td>
+            <td>{{ m.size }}</td>
+            <td>{{ m.used }}</td>
+            <td>{{ m.avail }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="status-legend">
+    สถานะ:
+    <b class="ok">OK</b> = ใช้น้อยกว่า 80% •
+    <b class="degraded">Degraded</b> = ใช้ระหว่าง 80–89% •
+    <b class="critical">Critical</b> = ใช้ระหว่าง 90–99% •
+    <b class="full">Full</b> = ใช้เต็ม 100%
+  </p>
+</div>
+

@@ -1,0 +1,149 @@
+{# /opt/pm-core/web/templates/detail_row3_cpu_mem.html #}
+
+<style>
+  /* สองคอลัมน์สำหรับ CPU & Memory ภายใน card นี้เท่านั้น */
+  .detail-cpu-mem-two-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .detail-cpu-mem-two-col .detail-cpu-col,
+  .detail-cpu-mem-two-col .detail-mem-col {
+    flex: 1 1 0;
+    min-width: 260px;
+  }
+
+  @media (max-width: 768px) {
+    .detail-cpu-mem-two-col {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="card h-100">
+  <!-- Header: Icon + Title -->
+<div class="card-header d-flex justify-content-between align-items-center">
+
+  <h4 class="mb-0" style="font-weight:600;">
+    <svg width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="#5ab0f7" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round"
+         class="me-2" style="vertical-align: middle;">
+      <rect x="4" y="4" width="12" height="12" rx="2" ry="2"></rect>
+      <rect x="8" y="8" width="4" height="4"></rect>
+      <line x1="18" y1="8" x2="20" y2="8"></line>
+      <line x1="18" y1="12" x2="20" y2="12"></line>
+      <line x1="18" y1="16" x2="20" y2="16"></line>
+    </svg>
+    CPU & MEMORY DETAIL
+  </h4>
+
+  <small class="text-muted">
+      Snapshot: {{ collected_ts or processed_ts or "-" }}
+  </small>
+</div>
+
+  <div class="card-body small">
+    <div class="detail-cpu-mem-two-col">
+
+      <!-- CPU COLUMN -->
+      <div class="detail-cpu-col">
+        <h6 class="text-muted mb-2">CPU</h6>
+
+        {% if cpu_detail %}
+          {# host_cpu_detail: hostname, collected_utc, model, arch, sockets, cores_per_socket, threads_per_core, cpu_mhz #}
+          {% set model   = cpu_detail["model"]   if "model"   in cpu_detail.keys() else cpu_detail[2] %}
+          {% set arch    = cpu_detail["arch"]    if "arch"    in cpu_detail.keys() else cpu_detail[3] %}
+          {% set sockets = cpu_detail["sockets"] if "sockets" in cpu_detail.keys() else cpu_detail[4] %}
+          {% set cores   = cpu_detail["cores_per_socket"] if "cores_per_socket" in cpu_detail.keys() else cpu_detail[5] %}
+          {% set threads = cpu_detail["threads_per_core"] if "threads_per_core" in cpu_detail.keys() else cpu_detail[6] %}
+          {% set mhz     = cpu_detail["cpu_mhz"] if "cpu_mhz" in cpu_detail.keys() else cpu_detail[7] %}
+
+          {% set total_logical = (sockets|int) * (cores|int) * (threads|int) %}
+
+          <dl class="row mb-2">
+            <dt class="col-5">Model</dt>
+            <dd class="col-7">{{ model }}</dd>
+
+            <dt class="col-5">Arch</dt>
+            <dd class="col-7">{{ arch }}</dd>
+
+            <dt class="col-5">Topology</dt>
+            <dd class="col-7">
+              {{ sockets }} socket(s) × {{ cores }} core(s)/socket × {{ threads }} thread(s)/core
+              <br>
+              <span class="text-muted">Logical CPUs ≈ {{ total_logical }}</span>
+            </dd>
+
+            <dt class="col-5">Base Speed</dt>
+            <dd class="col-7">
+              {% if mhz %}
+                {{ "%.0f"|format(mhz|float) }} MHz
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+          </dl>
+        {% else %}
+          <p class="text-muted mb-2">CPU detail not collected.</p>
+        {% endif %}
+      </div>
+
+      <!-- MEMORY COLUMN -->
+      <div class="detail-mem-col">
+        <h6 class="text-muted mb-2">Memory &amp; Swap</h6>
+
+        {% if mem_info %}
+          {% set total_mb = mem_info["mem_total_mb"] if "mem_total_mb" in mem_info.keys() else mem_info[0] %}
+          {% set used_mb  = mem_info["mem_used_mb"]  if "mem_used_mb"  in mem_info.keys() else mem_info[1] %}
+          {% set free_mb  = mem_info["mem_free_mb"]  if "mem_free_mb"  in mem_info.keys() else mem_info[2] %}
+          {% set swap_pct = mem_info["swap_pct"]     if "swap_pct"     in mem_info.keys() else mem_info[3] %}
+
+          {% set total_gb = (total_mb|float / 1024.0) if total_mb else 0 %}
+          {% if total_mb %}
+            {% set mem_pct = (used_mb|float * 100.0 / total_mb|float) %}
+          {% else %}
+            {% set mem_pct = None %}
+          {% endif %}
+
+          <dl class="row mb-0">
+            <dt class="col-5">RAM Total</dt>
+            <dd class="col-7">
+              {% if total_gb %}
+                {{ "%.1f"|format(total_gb) }} GB
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+
+            <dt class="col-5">Used / Free</dt>
+            <dd class="col-7">
+              {% if total_mb and used_mb is not none %}
+                {{ used_mb }} MB used
+                ({{ "%.1f"|format(mem_pct) }}%)
+                <br>
+                {{ free_mb }} MB free
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+
+            <dt class="col-5">Swap Usage</dt>
+            <dd class="col-7">
+              {% if swap_pct is not none %}
+                {{ swap_pct }}%
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+          </dl>
+        {% else %}
+          <p class="text-muted mb-0">Memory detail not collected.</p>
+        {% endif %}
+      </div>
+
+    </div>  {# /.detail-cpu-mem-two-col #}
+  </div>
+</div>
+

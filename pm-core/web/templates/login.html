@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign In | {{ config.provider_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body, html { height: 100%; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        
+        .split-screen { display: flex; height: 100vh; width: 100%; }
+
+        /* --- ฝั่งซ้าย: Branding Area (55%) สีเข้มสวยหรู --- */
+        .left-pane {
+            width: 55%;
+            background: radial-gradient(circle at bottom left, #0f172a 0%, #1e293b 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            color: white;
+            padding: 3rem;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        /* Effect พื้นหลังจางๆ ให้ดูมีมิติ */
+        .left-pane::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM10 10c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10S0 25.523 0 20s4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .brand-logo {
+            max-width: 55%; /* Logo ใหญ่สะใจ */
+            height: auto;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.3)); /* เรืองแสงสีฟ้าอ่อนๆ */
+            position: relative;
+            z-index: 2;
+        }
+
+        .slogan-text {
+            font-size: 1.4rem;
+            font-weight: 300;
+            opacity: 0.8;
+            margin-bottom: 0.2rem;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .copyright-text {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;	
+            text-align: center;
+            left: 0;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.3);
+            z-index: 2;
+        }
+
+        /* --- ฝั่งขวา: Login Area (45%) --- */
+        .right-pane {
+            width: 45%;
+            background-color: #0b1120; /* Dark Mode เข้มสนิท */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            position: relative;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 380px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .client-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            padding: 0.6rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 2.5rem;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-label {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .input-group-text {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-right: none;
+            color: #64748b;
+        }
+
+        .form-control {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-left: none;
+            color: #fff;
+            padding: 0.8rem;
+            font-size: 1rem;
+        }
+
+        .form-control:focus {
+            background-color: #1e293b;
+            border-color: #3b82f6;
+            color: #fff;
+            box-shadow: none;
+        }
+        
+        .form-control:focus + .input-group-text {
+            border-color: #3b82f6;
+        }
+
+        /* ทำให้เส้นขอบ input เปลี่ยนสีพร้อมกันทั้งก้อน */
+        .input-group:focus-within .input-group-text,
+        .input-group:focus-within .form-control {
+            border-color: #3b82f6;
+        }
+        .input-group:focus-within .input-group-text {
+            color: #3b82f6;
+        }
+
+        .btn-login {
+            background: linear-gradient(to right, #2563eb, #3b82f6);
+            border: none;
+            padding: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            width: 100%;
+            margin-top: 1.5rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+            background: linear-gradient(to right, #1d4ed8, #2563eb);
+        }
+
+        .support-link {
+            position: absolute;
+            bottom: 30px;
+            color: #475569;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .support-link:hover { color: #94a3b8; }
+
+        /* Responsive มือถือ */
+        @media (max-width: 900px) {
+            .split-screen { flex-direction: column; }
+            .left-pane { 
+                width: 100%; height: 35%; padding: 1.5rem; 
+                border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            .brand-logo { max-width: 160px; margin-bottom: 0.5rem; }
+            .slogan-text { font-size: 1.1rem; }
+            .copyright-text { display: none; } /* ซ่อน copyright บนมือถือเพื่อประหยัดที่ */
+            .right-pane { width: 100%; height: 65%; padding: 2rem; }
+            .client-badge { margin-bottom: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="split-screen">
+    <div class="left-pane">
+        <img src="/static/logo.png" alt="PTS Logo" class="brand-logo">
+        
+        <div class="slogan-text">Preventive Maintenance Platform</div>
+        <div style="color: #64748b; font-weight: 300;">System Health & Performance Intelligence</div>
+
+        <div class="copyright-text">
+            &copy; <span id="year"></span> {{ config.provider_name or '[PTS] Professional Team Services' }}. All Rights Reserved.
+        </div>
+    </div>
+
+    <div class="right-pane">
+        <div class="login-box">
+            <div class="text-center">
+                <div class="client-badge">
+                    <i class="bi bi-shield-check me-2"></i>
+                    {{ config.client_name or 'Secure Service Portal' }}
+                </div>
+                
+                <h3 class="fw-bold text-white mb-1">Welcome Back</h3>
+                <p class="text-secondary small mb-4">Please enter your credentials to access.</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger d-flex align-items-center small py-2 mb-4" role="alert" style="background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5;">
+                <i class="bi bi-exclamation-octagon me-2"></i>
+                <div>{{ error }}</div>
+            </div>
+            {% endif %}
+
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input name="username" class="form-control" placeholder="Enter username" required autofocus>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input name="password" type="password" class="form-control" placeholder="Enter password" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-login">Sign In</button>
+            </form>
+        </div>
+
+        <a href="#" class="support-link" data-bs-toggle="modal" data-bs-target="#supportModal">
+            <i class="bi bi-life-preserver me-1"></i> Need help? Contact Support
+        </a>
+    </div>
+</div>
+
+<div class="modal fade" id="supportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #1e293b; border: 1px solid #334155;">
+            <div class="modal-header border-bottom border-secondary" style="border-color: #334155 !important;">
+                <h5 class="modal-title text-white">Technical Support</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-headset" style="font-size: 3rem; color: #3b82f6;"></i>
+                </div>
+                <h6 class="text-white mb-1">{{ config.contact.team_name or 'Support Team' }}</h6>
+                <p class="text-secondary small mb-4">Service Provider</p>
+                
+                <div class="d-grid gap-2">
+                    <a href="tel:{{ config.contact.tel }}" class="btn btn-outline-light btn-sm text-start p-3">
+                        <i class="bi bi-telephone me-3 text-success"></i> {{ config.contact.tel or '-' }}
+                    </a>
+                    <a href="mailto:{{ config.contact.email }}" class="btn btn-outline-light btn-sm text-start p-3">
+                        <i class="bi bi-envelope me-3 text-warning"></i> {{ config.contact.email or '-' }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // ตั้งค่าปีปัจจุบันอัตโนมัติ
+    document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>

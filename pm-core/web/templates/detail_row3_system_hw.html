@@ -1,0 +1,274 @@
+{# /opt/pm-core/web/templates/detail_row3_system_hw.html #}
+{# System & Platform + Hardware + Repo Summary #}
+
+<style>
+  /* สองคอลัมน์ภายใน System & Platform (ไม่พึ่ง grid อื่น) */
+  .detail-sys-two-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .detail-sys-two-col .detail-sys-col {
+    flex: 1 1 0;
+    min-width: 260px;
+  }
+
+  @media (max-width: 768px) {
+    .detail-sys-two-col .detail-sys-col {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+  }
+</style>
+
+<div class="card h-100">
+
+  <!-- Header -->
+<div class="card-header d-flex justify-content-between align-items-center">
+
+  <h4 class="mb-0" style="font-weight:600;">
+    <svg width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="#5ab0f7" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round"
+         class="me-2" style="vertical-align: middle;">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+      <line x1="8" y1="21" x2="16" y2="21"></line>
+      <line x1="12" y1="17" x2="12" y2="21"></line>
+    </svg>
+    SYSTEM & PLATFORM
+  </h4>
+
+<small class="text-muted">
+        Snapshot: {{ collected_ts or processed_ts or "-" }}
+    </small>
+</div>
+
+  <!-- Body -->
+  <div class="card-body small text-light">
+
+    <!-- ========================= -->
+    <!--  System + Hardware (2 col) -->
+    <!-- ========================= -->
+    <div class="detail-sys-two-col mb-3">
+
+      <!-- Left: System Overview -->
+<div class="detail-sys-col">
+  <h6 class="text-muted mb-2">System Overview</h6>
+  <dl class="row mb-0">
+    <dt class="col-4">Hostname</dt>
+    <dd class="col-8">
+      {{ (H.get('hostname') if H is defined else None) or host or '-' }}
+    </dd>
+
+	<dt class="col-4">Host ID</dt>
+	<dd class="col-8">
+		{{ ((H.get('hostid') if H is defined else None) or '-') }}
+	</dd>
+
+    <dt class="col-4">OS</dt>
+    <dd class="col-8">
+      {{ os_name }}
+    </dd>
+
+    <dt class="col-4">Kernel</dt>
+    <dd class="col-8">
+      {{ kernel }}
+    </dd>
+
+    <dt class="col-4">Uptime</dt>
+    <dd class="col-8">
+      {{ uptime }}
+    </dd>
+
+    <dt class="col-4">Machine ID</dt>
+    <dd class="col-8">
+      {{ ((H.get('machine_id') if H is defined else None) or '-') }}
+    </dd>
+  </dl>
+</div>
+
+      <!-- Right: Platform / Hardware -->
+      <div class="detail-sys-col">
+        <h6 class="text-muted mb-2">Platform / Hardware</h6>
+        <dl class="row mb-0">
+          <dt class="col-5">Virtualization</dt>
+          <dd class="col-7">
+            {% if system_hw %}
+              {% set _virt = (system_hw["virt_type"] if "virt_type" in system_hw.keys() else system_hw[2]) %}
+				{{ (_virt if (_virt is not none and _virt != '' and _virt != 'None') else '-') }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">Manufacturer</dt>
+          <dd class="col-7">
+            {% if system_hw %}
+              {% set _manu = (system_hw["manufacturer"] if "manufacturer" in system_hw.keys() else system_hw[3]) %}
+				{{ (_manu if (_manu is not none and _manu != '' and _manu != 'None') else '-') }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">Product Name</dt>
+          <dd class="col-7">
+            {% if system_hw %}
+              {% set _prod = (system_hw["product_name"] if "product_name" in system_hw.keys() else system_hw[4]) %}
+				{{ (_prod if (_prod is not none and _prod != '' and _prod != 'None') else '-') }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">Serial Number</dt>
+          <dd class="col-7">
+            {% if system_hw %}
+              {% set _ser = (system_hw["serial_number"] if "serial_number" in system_hw.keys() else system_hw[5]) %}
+				{{ (_ser if (_ser is not none and _ser != '' and _ser != 'None') else '-') }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+
+    </div> <!-- /detail-sys-two-col -->
+
+    <hr style="border-color:#1e2a38;">
+
+    <!-- ========================= -->
+    <!--  Repository Summary       -->
+    <!-- ========================= -->
+    <h6 class="text-muted mb-2">Repository Summary</h6>
+
+    {% if repo_status %}
+
+      {% set pkg_mgr = (
+           repo_status["pkg_manager"] if "pkg_manager" in repo_status.keys()
+           else repo_status[2]
+      ) %}
+
+      {% set enabled_repos = (
+           repo_status["enabled"] if "enabled" in repo_status.keys()
+           else (
+             repo_status["enabled_repos"] if "enabled_repos" in repo_status.keys()
+             else repo_status[3]
+           )
+      ) %}
+
+      {% set updates = (
+           repo_status["updates"] if "updates" in repo_status.keys()
+           else (
+             repo_status["updates_available"] if "updates_available" in repo_status.keys()
+             else repo_status[4]
+           )
+      ) %}
+
+      {% set last_update = (
+           repo_status["last_update"] if "last_update" in repo_status.keys()
+           else repo_status[5]
+      ) %}
+
+      <dl class="row mb-0">
+        <dt class="col-4">Package Manager</dt>
+        <dd class="col-8">
+          {{ pkg_mgr or "-" }}
+        </dd>
+
+        <dt class="col-4">Enabled Repos</dt>
+        <dd class="col-8">
+          {{ enabled_repos if enabled_repos is not none else "-" }}
+        </dd>
+
+        <dt class="col-4">Updates Available</dt>
+        <dd class="col-8">
+          {{ updates if updates is not none else "-" }}
+        </dd>
+
+        <dt class="col-4">Last Update</dt>
+        <dd class="col-8">
+          {{ last_update or "-" }}
+        </dd>
+      </dl>
+
+        <!-- Repo Health Badge (Phase 1) -->
+        <div class="mt-2 mb-3">
+		  {% if repo_health_icon and repo_health_label %}
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill bg-dark border" style="border-color:#1e2a38;">
+              <span style="font-size:1.05em;">{{ repo_health_icon }}</span>
+              <span class="ms-1">{{ repo_health_label }}</span>
+            </span>
+            <span class="text-muted" style="font-size:0.85em;">Repo cache check (from makecache/refresh)</span>
+			<span class="text-muted" style="font-size:0.85em;">Overall result (not per-repo)</span>
+        </div>
+          {% endif %}
+
+
+          {% if repo_status %}
+			{% set _online = (repo_breakdown["online"] if repo_breakdown is defined else (repo_status["online_repos"] if "online_repos" in repo_status.keys() else None)) %}
+			{% set _offline = (repo_breakdown["offline"] if repo_breakdown is defined else (repo_status["offline_repos"] if "offline_repos" in repo_status.keys() else None)) %}
+			{% set _local = (repo_breakdown["local"] if repo_breakdown is defined else (repo_status["local_repos"] if "local_repos" in repo_status.keys() else None)) %}
+
+
+            <div class="text-muted mt-2" style="font-size:0.95em;">
+              Repo Breakdown:
+              <span class="ms-2">🟢 Online: {{ (_online if _online is not none else "-") }}</span>
+              <span class="ms-2">🔴 Offline: {{ (_offline if _offline is not none else "-") }}</span>
+              <span class="ms-2">🟢 Local: {{ (_local if _local is not none else "-") }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Repo Items Table (Phase 1) -->
+        {% if repo_items and (repo_items|length > 0) %}
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless table-hover align-middle mb-0" style="color:#dfe7f3; table-layout:fixed;">
+              <thead style="border-bottom:1px solid #1e2a38;">
+                <tr class="text-muted" style="font-size:0.92em;">
+                  <th style="width:18%;">Repo ID</th>
+                  <th style="width:42%;">Repo Name</th>
+                  <th style="width:10%;">Type</th>
+                  <th style="width:30%;">BaseURL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in repo_items %}
+				  {% set _is_local = (r.is_local if r.is_local is defined else ((r.baseurl if r.baseurl else '').startswith('file://'))) %}
+{% set _type = ('LOCAL' if _is_local else 'NET') %}
+
+
+                  <tr style="border-bottom:1px solid rgba(30,42,56,0.6);">
+                    <td><code style="color:#bcd1ff;">{{ r.id }}</code></td>
+                    <td>{{ r.name }}</td>
+                    <td>
+                      {% if _type == 'LOCAL' %}
+                        <span class="text-success">🟢 LOCAL</span>
+                      {% else %}
+                        <span class="text-info">🌐 NET</span>
+                      {% endif %}
+                    </td>
+					<td style="font-size:0.92em; word-break:break-all; white-space:normal;">
+                      {{ (r.baseurl if r.baseurl else '-') }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mt-3 mb-0" style="font-size:0.95em;">
+            * Repo list not available in this snapshot
+          </p>
+        {% endif %}
+
+
+    {% else %}
+      <p class="text-muted mb-0">Repository status not collected.</p>
+    {% endif %}
+
+  </div> <!-- /card-body -->
+</div> <!-- /card -->
+
+

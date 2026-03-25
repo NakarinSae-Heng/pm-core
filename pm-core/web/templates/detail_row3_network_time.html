@@ -1,0 +1,151 @@
+{# /opt/pm-core/web/templates/detail_row3_network_time.html #}
+
+<style>
+  /* สองคอลัมน์สำหรับ Network & Time ภายใน card นี้เท่านั้น */
+  .detail-net-time-two-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .detail-net-time-two-col .detail-net-col,
+  .detail-net-time-two-col .detail-time-col {
+    flex: 1 1 0;
+    min-width: 260px;
+  }
+
+  @media (max-width: 768px) {
+    .detail-net-time-two-col {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="card h-100">
+  <!-- Header: Icon + Title -->
+<div class="card-header d-flex justify-content-between align-items-center">
+
+  <h4 class="mb-0" style="font-weight:600;">
+    <svg width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="#5ab0f7" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round"
+         class="me-2" style="vertical-align: middle;">
+      <circle cx="6" cy="8" r="2"></circle>
+      <circle cx="18" cy="8" r="2"></circle>
+      <circle cx="12" cy="16" r="2"></circle>
+      <line x1="8" y1="9.5" x2="10" y2="14.5"></line>
+      <line x1="16" y1="9.5" x2="14" y2="14.5"></line>
+      <circle cx="20" cy="18" r="3"></circle>
+      <line x1="20" y1="18" x2="20" y2="16.5"></line>
+      <line x1="20" y1="18" x2="21.3" y2="19"></line>
+    </svg>
+    NETWORK & TIME SYNC
+  </h4>
+
+  <small class="text-muted">
+      Snapshot: {{ collected_ts or processed_ts or "-" }}
+  </small>
+</div>
+
+  <div class="card-body small">
+    <div class="detail-net-time-two-col">
+
+      <!-- NETWORK COLUMN -->
+      <div class="detail-net-col">
+        <h6 class="text-muted mb-2">Network</h6>
+
+        <dl class="row mb-2">
+          <dt class="col-5">All IPs</dt>
+          <dd class="col-7">
+            {# ใช้ ip_list ที่ detail.html set ไว้ (เหมือน Row1) ก่อน #}
+            {% if ip_list %}
+              {{ ip_list | join(", ") }}
+            {% elif host.ip_list is defined and host.ip_list %}
+              {{ host.ip_list | join(", ") }}
+            {% elif host.ip_address is defined and host.ip_address %}
+              {{ host.ip_address }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">Gateway</dt>
+          <dd class="col-7">
+            {% if network_extra %}
+              {# host_network_extra: hostname, collected_utc, gateway, dns #}
+              {{ network_extra["gateway"] if "gateway" in network_extra.keys() else network_extra[2] }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+
+          <dt class="col-5">DNS</dt>
+          <dd class="col-7">
+            {% if network_extra %}
+              {{ network_extra["dns"] if "dns" in network_extra.keys() else network_extra[3] }}
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+
+      <!-- TIME SYNC + CLIENT TIME COLUMN -->
+      <div class="detail-time-col">
+        <h6 class="text-muted mb-2">Time Sync &amp; Client Time</h6>
+
+        {% if ntp_status %}
+          {# host_ntp_status: hostname, collected_utc, ntp_type, raw #}
+          {% set ntp_type = ntp_status["ntp_type"] if "ntp_type" in ntp_status.keys() else ntp_status[2] %}
+          {% set ntp_raw  = ntp_status["raw"]      if "raw"      in ntp_status.keys() else ntp_status[3] %}
+
+          <dl class="row mb-2">
+            <dt class="col-5">Sync Source</dt>
+            <dd class="col-7">
+              {% if ntp_type %}
+                {% if ntp_type|lower == "chrony" %}
+                  Chrony
+                {% elif ntp_type|lower in ["ntpd","ntp"] %}
+                  NTPD
+                {% else %}
+                  {{ ntp_type }}
+                {% endif %}
+              {% else %}
+                Unknown
+              {% endif %}
+            </dd>
+
+            <dt class="col-5">Status</dt>
+            <dd class="col-7">
+              {% if ntp_raw %}
+                <span class="text-monospace">{{ ntp_raw }}</span>
+              {% else %}
+                -
+              {% endif %}
+            </dd>
+          </dl>
+        {% else %}
+          <p class="text-muted mb-2">
+            No NTP/Chrony information collected for this snapshot.<br>
+            Time may be unsynchronized.
+          </p>
+        {% endif %}
+
+        <hr class="my-2">
+
+        <dl class="row mb-0">
+          <dt class="col-5">Client Time (UTC)</dt>
+          <dd class="col-7">
+            {{ host.client_ts or "-" }}
+          </dd>
+          <dt class="col-5">Client Time (TH)</dt>
+          <dd class="col-7">
+            {{ host.client_th or "-" }}
+          </dd>
+        </dl>
+      </div>
+
+    </div> {# /.detail-net-time-two-col #}
+  </div>
+</div>
+

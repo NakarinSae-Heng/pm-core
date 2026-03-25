@@ -1,0 +1,50 @@
+<!-- ROW 2: RESOURCE TRENDS -->
+<div class="card" style="margin-top:16px;">
+  <div class="card-title-row" style="align-items:center;justify-content:space-between;gap:8px;">
+    <div class="card-title">Resource Trends</div>
+
+    <!-- กลุ่มปุ่มโหมดกราฟ + ช่วงเวลา -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
+      
+      <!-- Graph Mode -->
+      <div class="trend-mode-group">
+        <span class="trend-label">Graph</span>
+        <button type="button" class="chip chip-sm trend-mode active" data-mode="smooth">Smooth</button>
+        <button type="button" class="chip chip-sm trend-mode" data-mode="step">Step</button>
+      </div>
+
+      <!-- Time Range -->
+      <div class="trend-range-group">
+        <span class="trend-label">Range</span>
+        <button type="button" class="chip chip-sm trend-range active" data-range="24h">24h</button>
+        <button type="button" class="chip chip-sm trend-range" data-range="7d">7d</button>
+        <button type="button" class="chip chip-sm trend-range" data-range="30d">30d</button>
+        <button type="button" class="chip chip-sm trend-range" data-range="3m">3m</button>
+        <button type="button" class="chip chip-sm trend-range" data-range="6m">6m</button>
+        <button type="button" class="chip chip-sm trend-range" data-range="1y">1y</button>
+        <!-- ปุ่ม Custom ใหม่ -->
+        <button type="button" class="chip chip-sm trend-range" data-range="custom">Custom</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="trendMeta" class="trend-meta">
+    Range: — • Latest: {{ processed_ts }}
+  </div>
+  
+<!-- ข้อมูลช่วงเวลาที่เลือก -->
+<div id="rangeInfo" class="range-info-banner"></div>
+
+  <div class="legend">
+    <span class="chip-dot dot-cpu"></span>CPU
+    <span class="chip-dot dot-mem"></span>Memory
+    <span class="chip-dot dot-disk"></span>Disk
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="trendChart"></canvas>
+  </div>
+</div>
+
+

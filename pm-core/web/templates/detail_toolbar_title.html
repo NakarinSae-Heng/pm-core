@@ -1,0 +1,55 @@
+<!-- HEADER BAR -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <a href="{{ url_for('dashboard') }}" class="btn-ghost">
+      <span>←</span><span>Back</span>
+    </a>
+  </div>
+  <div class="toolbar-center">
+    <span class="pill"><span class="pill-label">Host:</span> <strong>{{ host }}</strong></span>
+    {% set st = status %}
+    {% if st == 'offline' %}
+      {% set pill_class = 'status-pill-offline' %}
+      {% set pill_label = 'Offline' %}
+    {% elif st in ['warn', 'warning'] %}
+      {# ระดับ Warning แยกชัดเจน ไม่ปนกับ Degraded #}
+      {% set pill_class = 'status-pill-warning' %}
+      {% set pill_label = 'Warning' %}
+    {% elif st == 'degraded' %}
+      {% set pill_class = 'status-pill-degraded' %}
+      {% set pill_label = 'Degraded' %}
+    {% elif st in ['critical','crit'] %}
+      {% set pill_class = 'status-pill-critical' %}
+      {% set pill_label = 'Critical' %}
+    {% else %}
+      {% set pill_class = 'status-pill-up' %}
+      {% set pill_label = 'Up' %}
+    {% endif %}
+    <span class="status-pill {{ pill_class }}">
+      <span class="status-dot 
+        {% if pill_label == 'Up' %}
+          green
+        {% elif pill_label == 'Warning' %}
+          amber
+        {% elif pill_label in ['Degraded', 'Critical'] %}
+          red
+        {% elif pill_label == 'Offline' %}
+          gray
+        {% else %}
+          gray
+        {% endif %}
+      "></span>	  
+      Status: {{ pill_label }}
+      {% if age_text %}
+        <span style="font-size:12px; opacity:.8;">• Age: {{ age_text }} since last report</span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="toolbar-right">
+    <button id="themeToggle" class="secondary">Toggle Light</button>
+  </div>
+</div>
+
+<!-- PAGE TITLE -->
+<div class="page-title">Host Detail – {{ host }}</div>
+<div class="page-subtitle">Preventive Maintenance</div>

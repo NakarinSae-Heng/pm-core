@@ -1,0 +1,205 @@
+{# /opt/pm-core/web/templates/detail_row3_storage_lvm.html #}
+<style>
+/* ใช้ flexbox เพื่อจัดคอลัมน์ให้เป็น 2 คอลัมน์ */
+.detail-storage-lvm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  /* เพิ่ม margin-bottom ให้ส่วน Flexbox */
+  margin-bottom: 12px;
+}
+
+.detail-storage-lvm .detail-storage-col {
+  /* CRITICAL FIX: ให้ Item ยืดหยุ่นและมีขนาดขั้นต่ำ */
+  flex: 1 1 0; 
+  min-width: 260px;
+}
+
+/* สำหรับการแสดงผลในอุปกรณ์ขนาดเล็กให้เต็มหน้าจอ */
+@media (max-width: 768px) {
+  .detail-storage-lvm .detail-storage-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+</style>
+
+<div class="card h-100">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0" style="font-weight:600;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ab0f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="vertical-align: middle;">
+        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+        <rect x="8" y="8" width="8" height="8"></rect>
+        <line x1="8" y1="1" x2="8" y2="4"></line>
+        <line x1="16" y1="1" x2="16" y2="4"></line>
+      </svg>
+      STORAGE & LVM
+    </h4>
+    <small class="text-muted">
+        Snapshot: {{ collected_ts or processed_ts or "-" }}
+    </small>
+  </div>
+  
+  <div class="card-body small">
+    
+    <div class="detail-storage-lvm"> 
+
+      <div class="detail-storage-col"> 
+        <h6 class="text-muted mb-1">Disk Devices</h6>
+        {% if disks %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>Mount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in disks %}
+                  {# host_disks: hostname, collected_utc, name, dtype, size, mountpoint #}
+                  <tr>
+                    <td>{{ d["name"] if "name" in d.keys() else d[2] }}</td>
+                    <td>{{ d["dtype"] if "dtype" in d.keys() else d[3] }}</td>
+                    <td>{{ d["size"] if "size" in d.keys() else d[4] }}</td>
+                    <td>{{ d["mountpoint"] if "mountpoint" in d.keys() else d[5] }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No disk device data collected.</p>
+        {% endif %}
+      </div> <div class="detail-storage-col"> 
+        <h6 class="text-muted mb-1">LVM Overview</h6>
+
+        {% if lvm_vgs %}
+          <p class="mb-1">Volume Groups</p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0 lvm-table">
+              <thead>
+                <tr>
+                  <th>VG</th>
+                  <th>LVs</th>
+                  <th>PVs</th>
+                  <th>Size</th>
+                  <th>Free</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for vg in lvm_vgs %}
+                  {# host_lvm_vgs: hostname, collected_utc, vg_name, lv_count, pv_count, vg_size, vg_free #}
+                  {% set vg_name   = vg["vg_name"] if "vg_name" in vg.keys() else vg[2] %}
+                  {% set vg_lv_cnt = vg["lv_count"] if "lv_count" in vg.keys() else vg[3] %}
+                  {% set vg_pv_cnt = vg["pv_count"] if "pv_count" in vg.keys() else vg[4] %}
+                  {% set vg_size   = vg["vg_size"] if "vg_size" in vg.keys() else vg[5] %}
+                  {% set vg_free   = vg["vg_free"] if "vg_free" in vg.keys() else vg[6] %}
+
+                  <tr class="lvm-vg-row"
+                      data-vg-size="{{ vg_size }}"
+                      data-vg-free="{{ vg_free }}">
+                    <td>{{ vg_name }}</td>
+                    <td>{{ vg_lv_cnt }}</td>
+                    <td>{{ vg_pv_cnt }}</td>
+                    <td>
+                        <div class="lvm-size-cell">
+                            <div class="lvm-size-value">
+                                {{ vg_size }}
+                            </div>
+                            <div class="lvm-usage-bar">
+                                <div class="lvm-usage-fill"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ vg_free }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if lvm_lvs %}
+          <p class="mb-1">Logical Volumes</p>
+          <div class="table-responsive mb-2">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>LV</th>
+                  <th>VG</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for lv in lvm_lvs %}
+                  {# host_lvm_lvs: hostname, collected_utc, lv_name, vg_name, lv_size #}
+                  <tr>
+                    <td>{{ lv["lv_name"] if "lv_name" in lv.keys() else lv[2] }}</td>
+                    <td>{{ lv["vg_name"] if "vg_name" in lv.keys() else lv[3] }}</td>
+                    <td>{{ lv["lv_size"] if "lv_size" in lv.keys() else lv[4] }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if lvm_pvs %}
+          <p class="mb-1">Physical Volumes</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 lvm-table">
+              <thead>
+                <tr>
+                  <th>PV</th>
+                  <th>VG</th>
+                  <th>Size</th>
+                  <th>Free</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pv in lvm_pvs %}
+                  {# host_lvm_pvs: hostname, collected_utc, pv_name, vg_name, pv_size, pv_free #}
+                  {% set pv_name = pv["pv_name"] if "pv_name" in pv.keys() else pv[2] %}
+                  {% set pv_vg   = pv["vg_name"] if "vg_name" in pv.keys() else pv[3] %}
+                  {% set pv_size = pv["pv_size"] if "pv_size" in pv.keys() else pv[4] %}
+                  {% set pv_free = pv["pv_free"] if "pv_free" in pv.keys() else pv[5] %}
+
+                  <tr class="lvm-pv-row"
+                      data-pv-size="{{ pv_size }}"
+                      data-pv-free="{{ pv_free }}">
+                    <td>{{ pv_name }}</td>
+                    <td>{{ pv_vg }}</td>
+                    <td>
+                        <div class="lvm-size-cell">
+                            <div class="lvm-size-value">
+                                {{ pv_size }}
+                            </div>
+                            <div class="lvm-usage-bar">
+                                <div class="lvm-usage-fill"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-end">{{ pv_free }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if not lvm_vgs and not lvm_lvs and not lvm_pvs %}
+          <p class="text-muted mb-0">No LVM configuration detected for this snapshot.</p>
+        {% endif %}
+      </div> </div> <div class="row">
+        {% if not disks and not lvm_vgs and not lvm_lvs and not lvm_pvs %}
+             <div class="col-12">
+                <p class="text-muted mb-0">No Storage or LVM data collected for this host.</p>
+             </div>
+        {% endif %}
+    </div> 
+
+  </div>
+</div>

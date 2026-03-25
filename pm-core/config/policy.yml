@@ -1,0 +1,18 @@
+status:
+  warn_pct: 70
+  crit_pct: 90
+  offline_hours: 24
+  grace_hours: 2
+  debounce_points: 2
+  smoothing_points: 3
+
+disk:
+  consider_mounts: ["/", "/var", "/home"]
+  exclude_fstypes: ["iso9660","squashfs","tmpfs","devtmpfs","overlay","loop","autofs","cifs","nfs"]
+  min_size_gb: 1
+  use_max_across_mounts: true
+
+swap:
+  warn_pct: 20
+  crit_pct: 50
+  affect_main_status: false

@@ -1,0 +1,858 @@
+{% set H = head or {} %}
+{% set host = hostname or H.get('hostname') or '—' %}
+{% set status = (H.get('status') or 'up')|lower %}
+{% set age_text = H.get('age_text') or age_text or '' %}
+{% set ip_list = H.get('ip_addrs') or H.get('ip_addresses') or [] %}
+{% set kernel = H.get('kernel') or '-' %}
+{% set os_name = H.get('os') or H.get('os_name') or '-' %}
+{% set uptime = H.get('uptime') or '-' %}
+{% set processed_ts = H.get('processed_th') or processed_th or '-' %}
+{% set collected_ts = H.get('collected_th') or collected_th or '-' %}
+{# snapshot donut values; fallback to 0 #}
+{% set cpu_pct  = (H.get('cpu_pct')  if H.get('cpu_pct')  is not none else (H.get('cpu')  or 0))|float %}
+{% set mem_pct  = (H.get('mem_pct')  if H.get('mem_pct')  is not none else (H.get('memory') or 0))|float %}
+{% set disk_pct = (H.get('disk_pct') if H.get('disk_pct') is not none else (H.get('disk')   or 0))|float %}
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>PM Detail - {{ host }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root{
+      --card-bg:#020617;
+    }
+    html[data-theme="light"]{
+      --card-bg:#ffffff;
+    }
+
+    body{
+      padding:16px;
+      margin:0;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#020617;
+      color:#e5e7eb;
+    }
+    html[data-theme="light"] body{
+      background:#f3f4f6;
+      color:#111827;
+    }
+
+    a{ color:inherit; }
+
+    .toolbar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      padding:8px 12px;
+      border-radius:999px;
+      background:var(--card-bg);
+      box-shadow:0 10px 25px rgba(15,23,42,.45);
+    }
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .toolbar-center{ flex:1 1 auto; justify-content:center; }
+    .toolbar-right{ margin-left:auto; }
+
+    .btn-ghost{
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.7);
+      padding:4px 12px;
+      font-size:13px;
+      background:transparent;
+      color:inherit;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      cursor:pointer;
+    }
+    .btn-ghost:hover{
+      background:rgba(148,163,184,.18);
+    }
+
+    .pill{
+      border-radius:999px;
+      padding:4px 12px;
+      font-size:13px;
+      background:rgba(15,23,42,.9);
+      color:#e5e7eb;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+    }
+    html[data-theme="light"] .pill{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+    .pill-label{ opacity:.7; }
+
+    .status-pill{
+      border-radius:999px;
+      padding:4px 12px;
+      font-size:13px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .status-pill-up{
+      background:#052e16;
+      color:#22c55e;
+    }
+    .status-pill-warning{
+      background:#451a03;
+      color:#f97316;
+    }	  
+    .status-pill-degraded{
+      background:#7f1d1d;
+      color:#fecaca;
+    }
+    .status-pill-critical{
+      background:#450a0a;
+      color:#f97373;
+    }
+    .status-pill-offline{
+      background:#111827;
+      color:#9ca3af;
+    }
+    html[data-theme="light"] .status-pill-up{
+      background:#e8fff3;
+      color:#047857;
+    }
+    html[data-theme="light"] .status-pill-warning{
+      background:#fff7ed;
+      color:#c2410c;
+    }
+    html[data-theme="light"] .status-pill-degraded{
+      background:#fee2e2;
+      color:#b91c1c;
+    }
+    html[data-theme="light"] .status-pill-critical{
+      background:#fee2e2;
+      color:#b91c1c;
+    }
+    html[data-theme="light"] .status-pill-offline{
+      background:#e5e7eb;
+      color:#4b5563;
+    }
+
+    .status-dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+    }
+    .status-dot.green{ background:#22c55e; }
+    .status-dot.amber{ background:#f59e0b; }
+    .status-dot.red{ background:#ef4444; }
+    .status-dot.gray{ background:#6b7280; }
+
+    .chip{
+      border-radius:999px;
+      padding:4px 12px;
+      background:transparent;
+      font-weight:600;
+      font-size:13px;
+    }
+
+    .chip-dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      margin-right:6px;
+      vertical-align:middle;
+    }
+    .dot-cpu{ background:#3b82f6; }
+    .dot-mem{ background:#10b981; }
+    .dot-disk{ background:#a855f7; }
+
+    .chip-sm{ font-size:12px; padding:2px 10px; }
+
+    .secondary{
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.7);
+      background:transparent;
+      padding:4px 12px;
+      font-size:12px;
+      cursor:pointer;
+      color:inherit;
+    }
+    .secondary:hover{
+      background:rgba(148,163,184,.18);
+    }
+    html[data-theme="light"] .secondary{
+      border-color:#cbd5f5;
+    }
+
+    .grid{ display:grid; grid-template-columns:minmax(0,1fr); grid-gap:16px; margin-top:14px; }
+    .grid-2col{ grid-template-columns:2.1fr 1.4fr; }
+    @media (max-width:960px){
+      .grid-2col{ grid-template-columns:minmax(0,1fr); }
+    }
+
+    /* Base card – ใช้กับ System / Donut / Trends / Mounts / Notes ฯลฯ */
+    .card{
+      border-radius:14px;
+      padding:18px;
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,.14), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,.14), transparent 60%),
+        var(--card-bg);
+      box-shadow:0 16px 30px rgba(15,23,42,.65);
+    }
+
+    /* Light theme – ให้ card ดูใสขึ้น แต่ยังมี tint เล็กน้อย */
+    html[data-theme="light"] .card{
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,.08), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,.08), transparent 60%),
+        #ffffff;
+      box-shadow:0 14px 28px rgba(15,23,42,.12);
+    }
+
+
+    .card-title{ font-weight:700; font-size:18px; margin-bottom:10px; }
+    .card-title-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    /* ใช้จัด title + icon ให้อยู่ในแนวเดียวกัน */
+    .card-title-main{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
+    /* Bubble icon เล็ก ๆ หน้า title (เตรียมไว้ใช้ใน Phase ถัดไป) */
+    .card-title-icon{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:20px;
+      height:20px;
+      border-radius:999px;
+      font-size:12px;
+      background:rgba(15,23,42,.85);
+      color:#e5e7eb;
+      flex-shrink:0;
+    }
+    html[data-theme="light"] .card-title-icon{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+
+    .page-title{
+      font-size:26px;
+      font-weight:800;
+      margin:18px 4px 0 4px;
+    }
+    .page-subtitle{
+      font-size:13px;
+      opacity:.75;
+      margin:2px 4px 8px 4px;
+    }
+
+    .host-sub{ font-size:13px; opacity:.8; }
+
+    .kv{ width:100%; border-collapse:collapse; font-size:14px; margin-top:10px; }
+    .kv th, .kv td{ padding:4px 0; vertical-align:top; }
+    .kv th{
+      width:220px;
+      font-weight:500;
+      color:#9ca3af;
+      text-align:left;
+      padding-right:12px;
+    }
+    html[data-theme="light"] .kv th{ color:#4b5563; }
+    .kv small{ opacity:.65; font-size:12px; }
+
+    .ip-list{ margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
+    .badge{
+      border-radius:999px;
+      padding:4px 10px;
+      background:#0b1620;
+      color:#e5f4ff;
+      font-size:12px;
+    }
+    html[data-theme="light"] .badge{
+      background:#eef6ff;
+      color:#0b3a66;
+    }
+
+    /* Donut area */
+    .donut-grid{
+      display:grid;
+      grid-template-columns:repeat(3, 150px);
+      gap:18px;
+      margin-top:14px;
+      justify-content:center;
+    }
+    @media (max-width:960px){
+      .donut-grid{ justify-content:flex-start; }
+    }
+    @media (max-width:720px){
+      .donut-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    }
+    .donut-box{
+      position:relative;
+      height:160px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .donut-center{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      font-size:18px;
+    }
+    .donut-sub{
+      position:absolute;
+      width:100%;
+      bottom:-18px;
+      text-align:center;
+      opacity:.8;
+      font-size:12px;
+    }
+
+    /* Trend */
+    .chart-wrap{ position:relative; height:320px; }
+    .legend{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      font-size:14px;
+      margin-bottom:8px;
+      opacity:.9;
+    }
+    .legend .chip-dot{ width:10px; height:10px; }
+
+    .trend-meta{ font-size:13px; opacity:.8; margin:4px 0 6px 0; }
+
+    .trend-range-group{ display:flex; gap:6px; flex-wrap:wrap; }
+    .trend-mode-group{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .trend-label{
+      font-size:12px;
+      opacity:.7;
+    }
+
+    .trend-range,
+    .trend-mode{
+      cursor:pointer;
+      border-radius:999px;
+      border:none;
+      font-size:12px;
+      padding:4px 10px;
+    }
+
+    html[data-theme="dark"] .trend-range,
+    html[data-theme="dark"] .trend-mode{
+      background:rgba(15,23,42,.75);
+      color:#e5e7eb;
+    }
+    html[data-theme="light"] .trend-range,
+    html[data-theme="light"] .trend-mode{
+      background:#ffffff;
+      color:#111827;
+      border:1px solid #cbd5f5;
+    }
+
+    /* Active state สำหรับปุ่ม Graph / Range  */
+
+    /* DARK THEME */
+    /* DARK THEME – LED Green Active Chip */
+    .trend-range.active,
+    .trend-mode.active{
+      /* พื้นหลังแบบหลอดไฟเขียวเรือง ๆ */
+      background:
+        radial-gradient(circle at 30% 30%, #bbf7d0 0, #22c55e 40%, #166534 100%);
+      color:#e5fdf4;
+
+      border:1px solid rgba(187,247,208,0.9); /* ขอบเขียวอ่อน */
+
+      /* แสงเรืองรอบปุ่ม */
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,0.9),
+        0 0 10px rgba(52,211,153,0.9),
+        0 0 22px rgba(22,163,74,0.85);
+
+      /* ให้เปลี่ยนสถานะลื่น ๆ */
+      transition:
+        background 0.18s ease-out,
+        box-shadow 0.18s ease-out,
+        transform 0.12s ease-out;
+    }
+
+    /* กดค้างให้ดูเหมือนกดสวิตช์ลงนิดนึง */
+    .trend-range.active:active,
+    .trend-mode.active:active{
+      transform: translateY(1px) scale(0.98);
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,0.9),
+        0 0 14px rgba(52,211,153,0.9);
+    }
+
+    /* LIGHT THEME */
+    html[data-theme="light"] .trend-range.active,
+    html[data-theme="light"] .trend-mode.active{
+      background:#16a34a;                 /* เขียวสดบนพื้นขาว */
+      color:#f9fafb;
+      box-shadow:
+        0 0 0 1px rgba(22,163,74,0.95),
+        0 0 10px rgba(22,163,74,0.55);
+    }
+
+    /* Mount table */
+    .table-wrap{
+      max-height:420px;
+      overflow:auto;
+      border-radius:10px;
+      border:1px solid rgba(148,163,184,.5);
+    }
+    table.mounts{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    table.mounts thead{
+      position:sticky;
+      top:0;
+      background:#020617;
+      color:#e5e7eb;
+      z-index:1;
+    }
+    html[data-theme="light"] table.mounts thead{
+      background:#f1f5f9;
+      color:#0f172a;
+    }
+    table.mounts th,
+    table.mounts td{
+      padding:6px 10px;
+      border-bottom:1px solid rgba(148,163,184,.3);
+      text-align:left;
+    }
+    table.mounts tbody tr:nth-child(even){
+      background:rgba(15,23,42,.5);
+    }
+    html[data-theme="light"] table.mounts tbody tr:nth-child(even){
+      background:#f9fafb;
+    }
+
+    .text-sm{ font-size:13px; }
+    /* LVM usage bars (VG / PV) */
+    .lvm-size-text{
+      display:block;
+      font-variant-numeric: tabular-nums;
+      font-weight:500;
+    }
+
+    /* ตาราง LVM ให้กว้างเต็มพื้นที่ card */
+    .lvm-table{
+      width:100%;
+    }
+
+    /* LVM overview layout ให้กระชับ ไม่กินความกว้างทั้งแถว */
+    .lvm-overview-wrap{
+      max-width: 680px;
+    }
+
+    /* ปรับ padding ของ LVM table ให้ตัวหนังสือกับ bar ดูลงตัว */
+    .lvm-table th,
+    .lvm-table td{
+      padding-top: .25rem;
+      padding-bottom: .25rem;
+      padding-left: .25rem;
+      padding-right: .75rem;
+      vertical-align: middle;
+    }
+
+/* คอลัมน์ที่เป็น Size (อันที่เรามี bar) – ใช้แค่กำหนดความกว้าง */
+.lvm-table th:nth-child(4),
+.lvm-table td:nth-child(4){
+  min-width: 140px;
+}
+
+/* ให้คอลัมน์สุดท้ายของทุกตาราง LVM (ส่วนใหญ่คือ Free) ชิดขวา และไม่ตัดบรรทัด */
+.lvm-table th:last-child,
+.lvm-table td:last-child{
+  text-align: right;
+  white-space: nowrap;
+}
+
+
+    .lvm-usage-bar{
+      margin-top:6px;
+      width:220px;        /* ความยาวมาตรฐานของ bar */
+      max-width:100%;     /* ถ้าหน้าจอแคบ ให้หดตามความกว้าง cell ได้ */
+      height:8px;
+      border-radius:999px;
+      background:rgba(15,23,42,.9);
+      overflow:hidden;
+      position:relative;
+    }
+
+    html[data-theme="light"] .lvm-usage-bar{
+      background:#e5e7eb;
+    }
+
+    .lvm-usage-fill{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background:linear-gradient(90deg,#22c55e,#4ade80);
+      transition:
+        width .4s ease-out,
+        background-color .4s ease-out,
+        box-shadow .4s ease-out;
+      box-shadow:0 0 0 0 rgba(34,197,94,0);
+    }
+
+    .lvm-usage-fill.lvm-ok{
+      background:linear-gradient(90deg,#22c55e,#4ade80);
+      box-shadow:0 0 0 1px rgba(34,197,94,.45);
+    }
+    .lvm-usage-fill.lvm-warn{
+      background:linear-gradient(90deg,#f97316,#facc15);
+      box-shadow:0 0 0 1px rgba(245,158,11,.5);
+    }
+    .lvm-usage-fill.lvm-crit{
+      background:linear-gradient(90deg,#ef4444,#f97316);
+      box-shadow:0 0 0 1px rgba(239,68,68,.6);
+    }
+/* LVM size + bar alignment */
+.lvm-size-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;   /* ให้เลขกับ bar ชิดซ้ายตรงกัน */
+    gap: 0.15rem;              /* เว้นช่องเล็กน้อยระหว่างเลขกับ bar */
+}
+
+.lvm-size-value {
+    line-height: 1.1;
+    font-weight: 500;          /* ตัวเลขดูชัดขึ้นนิดหน่อย */
+}
+
+    /* Layout frame ของ Row 3 ทั้งแถบ – บีบไม่ให้กว้างเกินบนจอใหญ่ */
+    .detail-row3{
+      max-width: 1600px;   /* ถ้าจอกว้างมาก จะไม่เกิน 1600px */
+      margin: 0 auto;      /* จัดให้อยู่กลางหน้าจอ */
+    }
+
+/* --------------------------------------
+   Two-Column Layout for Row3 (System/HW + Storage vs CPU/MEM + Network)
+   --------------------------------------*/
+.detail-row3 > .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.detail-row3 .col-lg-7 {
+    flex: 0 0 58%;
+    max-width: 58%;
+}
+
+.detail-row3 .col-lg-5 {
+    flex: 0 0 38%;
+    max-width: 38%;
+}
+
+@media (max-width: 991px) {
+    .detail-row3 .col-lg-7,
+    .detail-row3 .col-lg-5 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* Internal card layout alignment */
+.detail-row3 .row > [class^="col-"] {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+.detail-row3 .col-5  { flex: 0 0 38%; max-width: 38%; }
+.detail-row3 .col-7  { flex: 0 0 62%; max-width: 62%; }
+.detail-row3 .col-lg-6,
+.detail-row3 .col-md-6 { flex: 0 0 50%; max-width: 50%; }
+
+
+    /* Row 3 – detail cards (System / Storage / Processes) */
+    .detail-row3 .card{
+      border-radius:14px;
+      border:1px solid rgba(148,163,184,.35);
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,.14), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(129,140,248,.18), transparent 60%),
+        rgba(15,23,42,.96);
+      box-shadow:0 18px 45px rgba(15,23,42,.85);
+      overflow:hidden;
+    }
+    html[data-theme="light"] .detail-row3 .card{
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,.07), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,.07), transparent 60%),
+        #ffffff;
+      border-color:rgba(148,163,184,.45);
+      box-shadow:0 16px 40px rgba(15,23,42,.12);
+    }
+
+    .detail-row3 .card-header{
+      border-bottom:1px solid rgba(148,163,184,.35);
+      background:linear-gradient(90deg, rgba(15,23,42,.96), rgba(15,23,42,.80));
+      padding:10px 14px;
+    }
+    html[data-theme="light"] .detail-row3 .card-header{
+      background:linear-gradient(90deg, #f9fafb, #eef2ff);
+      border-bottom-color:rgba(148,163,184,.30);
+    }
+
+    .detail-row3 .card-header h5{
+      font-size:15px;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+
+    .detail-row3 .card-body{
+      padding:12px 14px 14px;
+    }
+
+    .detail-row3 h6.text-muted{
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      opacity:.85;
+    }
+
+    /* Tables inside Row3 cards – compact & readable */
+    .detail-row3 .table{
+      margin-bottom:0;
+    }
+    .detail-row3 .table thead th{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      border-bottom-color:rgba(148,163,184,.35);
+    }
+    html[data-theme="light"] .detail-row3 .table thead th{
+      border-bottom-color:#e5e7eb;
+    }
+
+    .detail-row3 .table tbody td{
+      vertical-align:middle;
+    }
+
+    /* LVM size + bar alignment (ใช้กับ VG + PV) */
+    .lvm-size-cell{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      gap:4px;
+    }
+    .lvm-size-value{
+      font-variant-numeric:tabular-nums;
+      font-weight:500;
+      line-height:1.1;
+    }
+
+
+    /* Mount status legend */
+    .status-legend{
+      margin-top:8px;
+      font-size:14px;
+      opacity:.9;
+    }
+    .status-legend b.ok{
+      color:#22c55e;
+    }
+    .status-legend b.degraded{
+      color:#f59e0b;
+    }
+    .status-legend b.critical{
+      color:#ef4444;
+    }
+    .status-legend b.full{
+      color:#b91c1c;
+    }
+
+    #toggleMountsBtn{
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.9);
+      padding:4px 10px;
+      font-size:12px;
+      background:#020617;
+      color:#e5e7eb;
+      cursor:pointer;
+    }
+    #toggleMountsBtn:hover{
+      background:#0f172a;
+    }
+    html[data-theme="light"] #toggleMountsBtn{
+      background:#ffffff;
+      color:#111827;
+      border-color:#cbd5f5;
+    }
+    html[data-theme="light"] #toggleMountsBtn:hover{
+      background:#e5f0ff;
+    }
+
+    textarea{
+      width:100%;
+      border-radius:10px;
+      border:1px solid rgba(148,163,184,.7);
+      padding:10px;
+      resize:vertical;
+      min-height:160px;
+      background:#020617;
+      color:#e5e7eb;
+      font-family:inherit;
+      font-size:13px;
+    }
+    html[data-theme="light"] textarea{
+      background:#ffffff;
+      color:#111827;
+    }
+
+    /* Custom range modal */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.78);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+    }
+    .modal-backdrop.show{
+      display:flex;
+    }
+    .modal{
+      background:var(--card-bg);
+      border-radius:14px;
+      padding:16px 18px 14px 18px;
+      width:320px;
+      max-width:90%;
+      box-shadow:0 20px 45px rgba(15,23,42,.85);
+      font-size:13px;
+    }
+    .modal h3{
+      margin:0 0 10px 0;
+      font-size:16px;
+    }
+    .modal-row{
+      margin-bottom:8px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .modal-row label{
+      opacity:.8;
+    }
+    .modal-row input[type="datetime-local"]{
+      width:100%;
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid rgba(148,163,184,.7);
+      background:#020617;
+      color:#e5e7eb;
+      font-size:13px;
+    }
+    html[data-theme="light"] .modal-row input[type="datetime-local"]{
+      background:#ffffff;
+      color:#111827;
+      border-color:#cbd5f5;
+    }
+
+    .modal-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* ---- Row 3: Historical graphs placeholder ---- */
+    .history-row {
+      margin-top: 1.25rem;   /* ให้ระยะห่างจาก row ด้านบนเท่ากับ section อื่น ๆ */
+    }
+
+    .history-card {
+      min-height: 260px;     /* กันไม่ให้ card ดูเตี้ยเกินไป ถึงแม้ตอนนี้จะมีแต่ข้อความ */
+    }
+
+    @media (max-width: 991.98px) {
+      .history-row {
+        margin-top: 1rem;
+      }
+      .history-card {
+        min-height: 220px;
+      }
+    }
+
+    /* PM-Core: Row 3 – force full-width single column layout */
+    .detail-row3 > .row {
+      /* ยังคงใช้ flex แต่บังคับให้เรียงจากบนลงล่าง ทีละการ์ด */
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+    }
+
+    .detail-row3 > .row > [class*="col-"] {
+      /* ให้ทุก col ใน Row 3 กินเต็มแถว */
+      flex: 0 0 100%;
+      max-width: 100%;
+      width: 100%;
+    }
+
+  </style>
+</head>
+<body>
+
+
+  {% include "detail_toolbar_title.html" %}
+  {% include "detail_row1_system_snapshot.html" %}
+  {% include "detail_row2_trends.html" %}
+  {% include "detail_row3_reserved.html" %}
+  {% include "detail_row4_mounts.html" %}
+  {% include "detail_row5_notes.html" %}
+  
+<!-- Row 6 – Historical Graphs (Planned) -->
+<div class="container-fluid mt-4 detail-row3">
+  <div class="row history-row">
+    <div class="col-12">
+      {% include "detail_row3_history.html" %}
+    </div>
+  </div>
+</div>
+
+  
+  {% include "detail_modal_range.html" %}
+  {% include "detail_scripts.html" %}
+
+</body>
+</html>
+
+

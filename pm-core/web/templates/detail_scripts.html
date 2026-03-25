@@ -1,0 +1,1024 @@
+<style>
+  /* Fix calendar icon (date picker) for Custom Range in Dark Mode */
+
+  /* ทำให้พื้นหลัง + ตัวหนังสือของ input ดูเหมาะกับ dark */
+  html[data-theme="dark"] #rangeModal input[type="datetime-local"] {
+    background-color: #020617;   /* ดำเข้ากับธีม */
+    color: #e5e7eb;              /* ตัวหนังสือเทาอ่อน */
+    border-color: #1f2937;
+  }
+
+  /* ทำให้ไอคอน calendar/clock ใน Chrome/Edge สว่างขึ้น (มองเห็นบนพื้นดำ) */
+  html[data-theme="dark"] #rangeModal
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);           /* กลับสี ให้เป็นโทนขาว */
+    opacity: 1;
+    cursor: pointer;
+  }
+
+  /* กันบาง browser ลดความเข้ม icon เวลา hover */
+  html[data-theme="dark"] #rangeModal
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+</style>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Zoom / Pan plugin -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
+
+<script>
+  // ====== Register zoom plugin (ถ้ามี) ======
+  if (window.Chart && window["chartjs-plugin-zoom"] && window["chartjs-plugin-zoom"].default) {
+    window.Chart.register(window["chartjs-plugin-zoom"].default);
+  }
+
+  // ====== THEME TOGGLE ======
+  function applyTheme(theme) {
+    const html = document.documentElement;
+    const btn  = document.getElementById("themeToggle");
+    html.dataset.theme = theme;
+    if (btn) {
+      btn.textContent = theme === "dark" ? "Toggle Light" : "Toggle Dark";
+    }
+    try {
+      if (window.localStorage) {
+        localStorage.setItem("pmcore-theme", theme);
+      }
+    } catch(e) {}
+  }
+
+  (function initTheme() {
+    let saved = null;
+    try {
+      saved = window.localStorage ? localStorage.getItem("pmcore-theme") : null;
+    } catch(e) {}
+    applyTheme(saved || "dark");
+    const btn = document.getElementById("themeToggle");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        applyTheme(next);
+      });
+    }
+  })();
+
+  // ====== SNAPSHOT DONUTS ======
+  // กำหนดสีพื้นฐานของ Donut แต่ละตัวตาม resource
+  function baseColorForDonut(id) {
+    if (id === "cpuDonut")  return "#3b82f6"; // CPU = blue
+    if (id === "memDonut")  return "#22c55e"; // Memory = green
+    if (id === "diskDonut") return "#6f42c1"; // Disk = purple
+    return "#22c55e"; // fallback
+  }
+
+function valueToSeverityColor(v, baseColor) {
+    if (v >= 100) return "#b91c1c";
+    if (v >= 90)  return "#ef4444";
+    if (v >= 80)  return "#f97316";
+    return baseColor;
+  }
+
+  function makeDonut(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ctx = el.getContext("2d");
+    const baseColor = baseColorForDonut(id);
+    const color = valueToSeverityColor(value, baseColor);
+    new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["Used", "Free"],
+        datasets: [{
+          data: [value, Math.max(0, 100 - value)],
+          backgroundColor: [color, "rgba(148,163,184,.25)"],
+          borderWidth: 0,
+          cutout: "70%"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.label + ": " + ctx.raw + "%"
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const snapshotCpu  = {{ ('%.1f' % cpu_pct)|float }};
+  const snapshotMem  = {{ ('%.1f' % mem_pct)|float }};
+  const snapshotDisk = {{ ('%.1f' % disk_pct)|float }};
+
+  makeDonut("cpuDonut",  snapshotCpu);
+  makeDonut("memDonut",  snapshotMem);
+  makeDonut("diskDonut", snapshotDisk);
+
+  // ====== RESOURCE TRENDS (CPU / MEM / DISK) ======
+  // hostname จาก Jinja (ใช้สำหรับเรียก API)
+  const hostname = "{{ host }}";
+
+// แปลง timestamp จาก DB (รูปแบบ "YYYY-MM-DD HH:MM:SS" ใน UTC)
+// ให้เป็น string เวลาไทย Asia/Bangkok สำหรับแสดงผล
+function toLocalDisplayTime(value) {
+    if (!value) return '-';
+
+    // value คาดหวังรูปแบบ "YYYY-MM-DD HH:MM:SS"
+    const parts = String(value).trim().split(' ');
+    if (parts.length !== 2) {
+        // ถ้าไม่ใช่รูปแบบที่คาดไว้ ก็คืนค่าเดิมไปก่อน (กันพัง)
+        return value;
+    }
+
+    const [datePart, timePart] = parts;
+    const dateBits = datePart.split('-').map(Number);
+    const timeBits = timePart.split(':').map(Number);
+
+    if (dateBits.length !== 3 || timeBits.length < 2) {
+        return value;
+    }
+
+    const [year, month, day] = dateBits;
+    const [hour, minute, secondRaw] = timeBits;
+    const second = secondRaw || 0;
+
+    // สร้าง Date จาก UTC (ไม่อิง timezone เครื่อง)
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+
+    // แสดงผลเป็นเวลาไทย Asia/Bangkok
+    const display = utcDate.toLocaleString('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+
+    // ให้ format สั้น ๆ ดูอ่านง่าย (ตัด comma ออก)
+    return display.replace(',', '');
+}
+
+
+// wrapper เดิม ให้ function name เดิมใช้งานได้ทุกที่ (tooltip, x-axis, meta)
+function formatToThailandTime(label) {
+  const s = toLocalDisplayTime(label);
+  return !s || s === "—" ? "" : s;
+}
+
+
+function smartFormatXAxis(minTs, maxTs) {
+    const rangeMs = maxTs - minTs;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    let fmt = 'dd MMM HH:mm';
+    if (rangeMs <= 6 * oneDay) {
+        fmt = 'HH:mm';
+    } else if (rangeMs <= 30 * oneDay) {
+        fmt = 'dd MMM';
+    } else if (rangeMs <= 180 * oneDay) {
+        fmt = 'dd MMM yyyy';
+    } else {
+        fmt = 'MMM yyyy';
+    }
+
+    chart.updateOptions({
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                datetimeUTC: false,
+                format: fmt
+            }
+        }
+    });
+}
+
+function updateRangeInfo(selectedStart, selectedEnd, actualStart, actualEnd) {
+    let msg = `<b>Selected:</b> ${selectedStart} → ${selectedEnd}<br>
+               <b>Data:</b> ${actualStart} → ${actualEnd}`;
+
+    if (selectedStart < actualStart) {
+        msg += ` <span class="warn">(No data before ${actualStart})</span>`;
+    }
+
+    document.getElementById('rangeInfo').innerHTML = msg;
+}
+
+
+
+  // ข้อมูลชุดเริ่มต้นจาก server (24 ชั่วโมงล่าสุด)
+  let labels = {{ (chart.labels or [])|tojson }};
+  let cpu    = {{ (chart.cpu    or [])|tojson }};
+  let mem    = {{ (chart.mem    or [])|tojson }};
+  let disk   = {{ (chart.disk   or [])|tojson }};
+  const processedTs = "{{ processed_ts }}";
+// --- Auto-rotate X-axis labels plugin for Chart.js ---
+const AutoRotateTicksPlugin = {
+    id: 'autoRotateTicks',
+    afterBuildTicks(chart, args, options) {
+        const xScale = chart.scales.x;
+        if (!xScale || !xScale.ticks) return;
+
+        const tickCount = xScale.ticks.length;
+
+        // threshold สำหรับนิยาม "น้อย/กลาง/มาก"
+        // ปรับได้ผ่าน options ของกราฟ (plugins.autoRotateTicks)
+        const small  = (options && options.smallThreshold)  || 8;   // ≤ 8 = น้อย
+        const medium = (options && options.mediumThreshold) || 16;  // 9–16 = กลาง
+
+        let rotation;
+        if (tickCount <= small) {
+            rotation = 0;      // label น้อย → แนวนอน
+        } else if (tickCount <= medium) {
+            rotation = 45;     // label ปานกลาง → 45°
+        } else {
+            rotation = 90;     // label เยอะ → 90° แนวตั้ง
+        }
+
+        // บังคับให้แกน X ใช้มุมเดียวกันทั้ง min/max
+        if (xScale.options && xScale.options.ticks) {
+            xScale.options.ticks.minRotation = rotation;
+            xScale.options.ticks.maxRotation = rotation;
+        }
+    }
+};
+
+// register plugin
+if (typeof Chart !== 'undefined' && Chart.register) {
+    Chart.register(AutoRotateTicksPlugin);
+}
+// --- End Auto-rotate X-axis labels plugin ---
+
+  let trendChart      = null;
+  let trendMode       = "smooth";   // "smooth" | "step"
+  let currentRangeKey = "24h";
+
+  // custom range ที่ผู้ใช้เลือก
+  const customRange = { start: null, end: null };
+
+  // จำช่วงเวลาที่ขอครั้งล่าสุด (ใช้แสดงข้อความ No data)
+  let labelTimes         = [];
+  let lastRequestedRange = { start: null, end: null };
+
+  // แปลง label -> Date (รองรับหลายรูปแบบที่สุดเท่าที่ทำได้)
+  function parseLabelToDate(label) {
+    if (!label) return null;
+    const s = String(label).trim();
+
+    let d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+
+    if (s.indexOf(" ") !== -1) {
+      d = new Date(s.replace(" ", "T"));
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+
+  labelTimes = (labels || []).map(parseLabelToDate);
+
+  function getLastTimestamp() {
+    for (let i = labelTimes.length - 1; i >= 0; i--) {
+      const t = labelTimes[i];
+      if (t instanceof Date && !isNaN(t.getTime())) return t;
+    }
+    return null;
+  }
+
+  const RANGE_MS = {
+    "24h": 24*60*60*1000,
+    "7d" : 7*24*60*60*1000,
+    "30d": 30*24*60*60*1000,
+    "3m" : 90*24*60*60*1000,
+    "6m" : 180*24*60*60*1000,
+    "1y" : 365*24*60*60*1000
+  };
+
+// ใช้ processedTs (หรือเวลาปัจจุบัน) เป็น anchor ในการคำนวณช่วง preset
+  function getRangeWindowForPreset(rangeKey) {
+    const span = RANGE_MS[rangeKey] || RANGE_MS["24h"];
+    let endTs = parseLabelToDate(processedTs);
+    if (!endTs) endTs = new Date();
+    const startTs = new Date(endTs.getTime() - span);
+    return { startTs, endTs };
+  }
+
+  // เรียก API ใหม่ตามช่วงเวลา แล้วอัปเดต labels/cpu/mem/disk
+  async function loadRangeFromServer(rangeKey, startTs, endTs) {
+    if (!(startTs instanceof Date) || isNaN(startTs.getTime()) ||
+        !(endTs   instanceof Date) || isNaN(endTs.getTime())) {
+      console.warn("Invalid start/end for API metrics_data:", startTs, endTs);
+      return;
+    }
+
+    lastRequestedRange.start = startTs;
+    lastRequestedRange.end   = endTs;
+
+    const startParam = formatDateTimeLocal(startTs);
+    const endParam   = formatDateTimeLocal(endTs);
+
+    const url = `/api/metrics_data/${encodeURIComponent(hostname)}`
+              + `?start=${encodeURIComponent(startParam)}`
+              + `&end=${encodeURIComponent(endParam)}`;
+
+    try {
+      const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!resp.ok) {
+        console.error("metrics_data fetch failed:", resp.status, resp.statusText);
+        return;
+      }
+      const payload = await resp.json();
+      const m = Array.isArray(payload.metrics) ? payload.metrics : [];
+
+      labels = m.map(p => p.timestamp);
+      cpu    = m.map(p => (p.cpu  != null ? p.cpu  : 0));
+      mem    = m.map(p => (p.mem  != null ? p.mem  : 0));
+      disk   = m.map(p => (p.disk != null ? p.disk : 0));
+      labelTimes = (labels || []).map(parseLabelToDate);
+
+      renderTrend(rangeKey);
+    } catch (e) {
+      console.error("Error calling /api/metrics_data:", e);
+    }
+  }
+  
+  function filterByRange(rangeKey) {
+    if (!labels || !labels.length) {
+      return { xs: [], ysC: [], ysM: [], ysD: [], start: null, end: null };
+    }
+
+    const validTimes = labelTimes.filter(
+      t => t instanceof Date && !isNaN(t.getTime())
+    );
+    if (!validTimes.length) {
+      return {
+        xs:  labels.slice(),
+        ysC: cpu.slice(),
+        ysM: mem.slice(),
+        ysD: disk.slice(),
+        start: null,
+        end:   null
+      };
+    }
+
+    let startTs, endTs;
+
+    if (rangeKey === "custom" && customRange.start && customRange.end) {
+      startTs = customRange.start;
+      endTs   = customRange.end;
+      if (startTs > endTs) {
+        const tmp = startTs;
+        startTs = endTs;
+        endTs   = tmp;
+      }
+    } else {
+      endTs = getLastTimestamp() || validTimes[validTimes.length - 1];
+      const span = RANGE_MS[rangeKey] || RANGE_MS["24h"];
+      startTs = new Date(endTs.getTime() - span);
+    }
+
+    const xs  = [];
+    const ysC = [];
+    const ysM = [];
+    const ysD = [];
+
+    for (let i = 0; i < labels.length; i++) {
+      const t = labelTimes[i] || parseLabelToDate(labels[i]);
+      if (!(t instanceof Date) || isNaN(t.getTime())) continue;
+      if (t >= startTs && t <= endTs) {
+        xs.push(labels[i]);
+        ysC.push(cpu[i]);
+        ysM.push(mem[i]);
+        ysD.push(disk[i]);
+      }
+    }
+
+    return { xs, ysC, ysM, ysD, start: startTs, end: endTs };
+  }
+
+// ใช้ตัดสินว่า tick บนแกน X เป็น “major” ไหม
+// เงื่อนไขตอนนี้ = เวลาท้องถิ่นเป็น "HH:MM = 00:00" (เที่ยงคืนของวันใหม่)
+function isMajorXTick(rawUtc) {
+  if (!rawUtc) return false;
+
+  // ใช้ฟังก์ชันเดิมในการแปลงเวลาเป็นรูปแบบ TH แล้วค่อยเช็ค
+  // เช่น "30 Nov 2025, 00:00:00 (TH)"
+  const formatted = formatToThailandTime(rawUtc);
+  const parts = formatted.split(",");
+  if (parts.length < 2) return false;
+
+  // ดึงแค่ส่วนเวลา เช่น "00:00:00 (TH)" → "00:00"
+  const timePart = parts[1].trim().slice(0, 5);  // 5 ตัวแรกของ HH:MM:SS
+  return timePart === "00:00";
+}
+
+  function buildTrendConfig(xs, ysCpu, ysMem, ysDisk) {
+    const stepped = (trendMode === "step");
+    const tension = (trendMode === "smooth") ? 0.3 : 0.0;
+
+    return {
+      type: "line",
+      data: {
+        labels: xs,
+        datasets: [
+          {
+            label: "CPU",
+            data: ysCpu,
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59,130,246,.15)",
+            pointRadius: 2,
+            tension: tension,
+            stepped: stepped
+          },
+          {
+            label: "Memory",
+            data: ysMem,
+            borderColor: "#22c55e",
+            backgroundColor: "rgba(34,197,94,.15)",
+            pointRadius: 2,
+            tension: tension,
+            stepped: stepped
+          },
+          {
+            label: "Disk",
+            data: ysDisk,
+            borderColor: "#6f42c1",
+            backgroundColor: "rgba(111,66,193,.20)",
+            pointRadius: 2,
+            tension: tension,
+            stepped: stepped
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: {
+          // ให้ tooltip แสดงทุก dataset ใน timestamp เดียวกัน
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => {
+                if (!items || !items.length) return "";
+                const rawLabel = items[0].label || "";
+                return formatToThailandTime(rawLabel);
+              },
+              label: ctx => {
+                const lbl = ctx.dataset.label || "";
+                const v   = (typeof ctx.parsed.y === "number")
+                  ? ctx.parsed.y.toFixed(1)
+                  : ctx.parsed.y;
+                return `${lbl}: ${v}%`;
+              },
+              labelColor: ctx => {
+                const color = ctx.dataset.borderColor || "#ffffff";
+                return {
+                  borderColor: color,
+                  backgroundColor: color
+                };
+              }
+            }
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: "x"
+            },
+            zoom: {
+              wheel: { enabled: true },
+              pinch: { enabled: true },
+              mode: "x"
+            }
+          },
+			autoRotateTicks: {
+			smallThreshold: 8,   // tick ≤ 8 → 0°
+			mediumThreshold: 16  // 9–16 → 45°, มากกว่า → 90°
+          }
+        },
+      scales: {
+        // ===== X axis (time) – เพิ่ม major tick + major grid =====
+        x: {
+          // เส้น grid แนวตั้ง แยก major / minor
+          grid: {
+            color: function(ctx) {
+              const idx = ctx.index;
+              const raw = xs[idx];
+              if (isMajorXTick(raw)) {
+                // major grid – เส้นชัดขึ้นหน่อย
+                return "rgba(148,163,184,0.45)";   // สีเทาอ่อน
+              }
+              // minor grid – เบากว่า
+              return "rgba(148,163,184,0.15)";
+            },
+            lineWidth: function(ctx) {
+              const idx = ctx.index;
+              const raw = xs[idx];
+              return isMajorXTick(raw) ? 1.5 : 0.5;
+            },
+            drawBorder: false
+          },
+
+          ticks: {
+            autoSkip: true,
+            // ค่านี้เดี๋ยว renderTrend จะ override ตาม range (24h/7d/30d/…)
+            maxTicksLimit: 10,
+
+            // ปรับ style ของ “label หลัก” ให้ดูเด่นขึ้น
+            font: function(ctx) {
+              const idx = ctx.index;
+              const raw = xs[idx];
+              if (isMajorXTick(raw)) {
+                // major tick → ตัวใหญ่ หนา
+                return { size: 12, weight: "600" };
+              }
+              // minor tick → ปกติ
+              return { size: 11, weight: "400" };
+            },
+            color: function(ctx) {
+              const idx = ctx.index;
+              const raw = xs[idx];
+              // major tick = สีสว่างกว่า
+              return isMajorXTick(raw) ? "#e5e7eb" : "#9ca3af";
+            },
+
+            // ฟอร์แมตข้อความเหมือนเดิม (ใช้ TH)
+            callback: function(value, index) {
+              const rawLabel = xs[index] || "";
+              if (!rawLabel) return "";
+              const formatted = formatToThailandTime(rawLabel);
+              const parts = formatted.split(",");
+              // แสดง "30 Nov 10:05" แบบย่อ
+              return parts.length > 1
+                ? (parts[0] + " " + parts[1].trim().slice(0,5))
+                : formatted;
+            }
+          }
+        },
+        // ===== Y axis (percent) – major / minor grid =====
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: v => v + "%"
+          },
+          grid: {
+            drawBorder: false,
+            // แยกเส้นหลักทุก ๆ 20% (0,20,40,60,80,100)
+            color: function(ctx) {
+              const v = ctx.tick.value;
+              const isMajor = (v % 20 === 0);
+              return isMajor
+                ? "rgba(148,163,184,0.45)"  // major
+                : "rgba(148,163,184,0.18)"; // minor
+            },
+            lineWidth: function(ctx) {
+              const v = ctx.tick.value;
+              const isMajor = (v % 20 === 0);
+              return isMajor ? 1.3 : 0.6;
+            }
+          }
+        }
+        }
+      }
+    };
+  }
+
+function renderTrend(rangeKey) {
+  // 1) เลือก range ปัจจุบัน (ถ้าไม่ส่งมาก็ใช้ของเดิม หรือ default = 24h)
+  currentRangeKey = rangeKey || currentRangeKey || "24h";
+
+  const canvas = document.getElementById("trendChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  // 2) ดึงข้อมูลตาม range ที่เลือก
+  const { xs, ysC, ysM, ysD, start, end } = filterByRange(currentRangeKey);
+
+  // 3) สร้าง config พื้นฐานของกราฟ
+  const config = buildTrendConfig(xs, ysC, ysM, ysD);
+
+  // ------------------------------------------------------------------
+  // 4) ปรับ "จำนวน tick" และ "องศาการหมุน" ตามจำนวนจุด + ชนิด range
+  // ------------------------------------------------------------------
+  const labelCount = xs ? xs.length : 0;
+
+  // อ่าน threshold สำหรับการหมุนจาก plugins.autoRotateTicks (ที่เราใส่ไว้ใน buildTrendConfig)
+  const autoCfg =
+    (config.options &&
+     config.options.plugins &&
+     config.options.plugins.autoRotateTicks) || {};
+
+  const smallTh  = (typeof autoCfg.smallThreshold  === "number") ? autoCfg.smallThreshold  : 8;
+  const mediumTh = (typeof autoCfg.mediumThreshold === "number") ? autoCfg.mediumThreshold : 16;
+
+  // คำนวณองศาที่จะใช้จริง
+  let rotation = 0; // label น้อย → 0°
+  if (labelCount > mediumTh) {
+    rotation = 90;  // เยอะมาก → 90°
+  } else if (labelCount > smallTh) {
+    rotation = 45;  // กลาง ๆ → 45°
+  }
+
+  // ฟังก์ชันเลือก maxTicksLimit ตาม range
+  function getMaxTicksLimit(rangeKey, n) {
+    let base;
+    switch (rangeKey) {
+      case "24h":
+        base = 8;
+        break;
+      case "7d":
+        base = 10;
+        break;
+      case "30d":
+        base = 12;
+        break;
+      case "3m":
+      case "6m":
+      case "1y":
+        base = 14;
+        break;
+      default:
+        base = 10;
+        break;
+    }
+    if (typeof n === "number" && n > 0) {
+      return Math.min(base, n);
+    }
+    return base;
+  }
+
+  const maxTicks = getMaxTicksLimit(currentRangeKey, labelCount);
+
+  // เข้าถึง config ของ x-axis ticks แล้วเซ็ตค่าตามที่คำนวณได้
+  if (config.options &&
+      config.options.scales &&
+      config.options.scales.x &&
+      config.options.scales.x.ticks) {
+
+    const t = config.options.scales.x.ticks;
+    t.maxRotation   = rotation;
+    t.minRotation   = rotation;
+    t.maxTicksLimit = maxTicks;
+  }
+
+  // ------------------------------------------------------------------
+  // 5) สร้าง / อัปเดตกราฟ
+  // ------------------------------------------------------------------
+  if (trendChart) {
+    trendChart.data    = config.data;
+    trendChart.options = config.options;
+    trendChart.update();
+  } else {
+    trendChart = new Chart(ctx, config);
+  }
+
+  // ------------------------------------------------------------------
+  // 6) อัปเดตข้อความ meta ด้านบนกราฟ (TH time)
+  // ------------------------------------------------------------------
+  const metaEl = document.getElementById("trendMeta");
+  if (metaEl) {
+    if (xs && xs.length) {
+      // xs = timestamp จาก DB (UTC string)
+      const firstUtc = xs[0];
+      const lastUtc  = xs[xs.length - 1];
+
+      const firstLocal  = toLocalDisplayTime(firstUtc);
+      const lastLocal   = toLocalDisplayTime(lastUtc);
+      const latestLocal = lastLocal; // จุดสุดท้ายในกราฟ
+
+      metaEl.textContent =
+        `Range (data points in selected window / TH): ${firstLocal} → ${lastLocal} • Latest sample: ${latestLocal}`;
+    } else if (lastRequestedRange.start && lastRequestedRange.end) {
+      const rangeStr = formatRangeDisplay(lastRequestedRange.start,
+                                          lastRequestedRange.end);
+      metaEl.textContent =
+        `Range (selected window / TH): ${rangeStr} • No data in this period`;
+    } else {
+      const latest = getLastTimestamp();
+      let latestStr = "—";
+      if (latest instanceof Date && !isNaN(latest.getTime())) {
+        const tmp = formatRangeDisplay(latest, latest);
+        latestStr = tmp.split("→")[0].trim();
+      }
+      metaEl.textContent = `Range: — • Latest sample: ${latestStr}`;
+    }
+  }
+}
+
+
+  // แปลง Date → string สั้น ๆ สำหรับแสดงช่วงเวลาใน meta
+function formatRangeDisplay(start, end) {
+  const fmt = d => {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "—";
+    // แปลงเป็นเวลาไทยแบบย่อ ๆ
+    return d.toLocaleString("en-GB", {
+      timeZone: "Asia/Bangkok",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  };
+  return `${fmt(start)} → ${fmt(end)}`;
+}
+
+  // ====== CUSTOM RANGE MODAL ======
+  function formatDateTimeLocal(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    const pad = n => String(n).padStart(2, "0");
+    const y = d.getFullYear();
+    const m = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const h = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${y}-${m}-${day}T${h}:${mi}`;
+  }
+
+  function openRangeModal() {
+    const modal = document.getElementById("rangeModal");
+    const inputStart = document.getElementById("rangeStart");
+    const inputEnd   = document.getElementById("rangeEnd");
+    if (!modal || !inputStart || !inputEnd) return;
+
+    let defaultEnd = getLastTimestamp();
+    if (!defaultEnd) {
+      const validTimes = labelTimes.filter(
+        t => t instanceof Date && !isNaN(t.getTime())
+      );
+      if (validTimes.length) defaultEnd = validTimes[validTimes.length - 1];
+    }
+    let defaultStart = defaultEnd
+      ? new Date(defaultEnd.getTime() - RANGE_MS["24h"])
+      : null;
+
+    const useStart = customRange.start || defaultStart;
+    const useEnd   = customRange.end   || defaultEnd;
+
+    inputStart.value = useStart ? formatDateTimeLocal(useStart) : "";
+    inputEnd.value   = useEnd   ? formatDateTimeLocal(useEnd)   : "";
+
+    modal.classList.add("show");
+  }
+
+  function closeRangeModal() {
+    const modal = document.getElementById("rangeModal");
+    if (modal) modal.classList.remove("show");
+  }
+
+  // ====== INIT TREND + BIND BUTTONS ======
+  (function initTrends() {
+    const rangeButtons = document.querySelectorAll(".trend-range");
+    let defaultRangeKey = "24h";
+    let defaultBtn = null;
+
+    if (rangeButtons.length) {
+      rangeButtons.forEach(btn => {
+        const rKey = btn.dataset.range || "24h";
+        if (rKey === defaultRangeKey && !defaultBtn) {
+          defaultBtn = btn;
+        }
+
+        btn.addEventListener("click", async () => {
+          const rangeKey = btn.dataset.range || "24h";
+
+          if (rangeKey === "custom") {
+            openRangeModal();
+            return;
+          }
+
+          currentRangeKey = rangeKey;
+
+          rangeButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+
+          // คำนวณช่วงเวลาจาก preset แล้วเรียก API
+          const win = getRangeWindowForPreset(rangeKey);
+          await loadRangeFromServer(rangeKey, win.startTs, win.endTs);
+        });
+      });
+    }
+
+    // โหลดครั้งแรก: ทำเหมือนกดปุ่ม 24h
+    currentRangeKey = defaultRangeKey;
+
+    if (rangeButtons.length) {
+      rangeButtons.forEach(b => b.classList.remove("active"));
+      if (defaultBtn) {
+        defaultBtn.classList.add("active");
+      }
+    }
+
+    const initialWin = getRangeWindowForPreset(defaultRangeKey);
+    loadRangeFromServer(defaultRangeKey, initialWin.startTs, initialWin.endTs);
+
+
+    const modeButtons = document.querySelectorAll(".trend-mode");
+    if (modeButtons.length) {
+      modeButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          modeButtons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          trendMode = btn.dataset.mode || "smooth";
+          renderTrend(currentRangeKey);
+        });
+      });
+    }
+
+    const modal      = document.getElementById("rangeModal");
+    const inputStart = document.getElementById("rangeStart");
+    const inputEnd   = document.getElementById("rangeEnd");
+    const btnCancel  = document.getElementById("btnRangeCancel");
+    const btnApply   = document.getElementById("btnRangeApply");
+
+    if (btnCancel) {
+      btnCancel.addEventListener("click", closeRangeModal);
+    }
+    if (modal) {
+      modal.addEventListener("click", ev => {
+        if (ev.target === modal) closeRangeModal();
+      });
+    }
+
+    if (btnApply && inputStart && inputEnd && rangeButtons.length) {
+      btnApply.addEventListener("click", async () => {
+        const vStart = inputStart.value;
+        const vEnd   = inputEnd.value;
+
+        if (!vStart || !vEnd) {
+          alert("Please select both start and end time.");
+          return;
+        }
+        const dStart = new Date(vStart);
+        const dEnd   = new Date(vEnd);
+        if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) {
+          alert("Invalid date/time format.");
+          return;
+        }
+        if (dStart.getTime() === dEnd.getTime()) {
+          alert("Start and end time must be different.");
+          return;
+        }
+
+        customRange.start = dStart;
+        customRange.end   = dEnd;
+        currentRangeKey   = "custom";
+
+        rangeButtons.forEach(b => b.classList.remove("active"));
+        const customBtn = Array.from(rangeButtons).find(
+          b => (b.dataset.range || "") === "custom"
+        );
+        if (customBtn) customBtn.classList.add("active");
+
+        closeRangeModal();
+
+        // เรียก API ด้วยช่วง custom ที่ผู้ใช้เลือก
+        await loadRangeFromServer("custom", dStart, dEnd);
+      });
+    }
+
+  })();
+
+  // ====== LVM USAGE BARS (VG / PV) ======
+  (function initLvmUsageBars() {
+    const vgRows = document.querySelectorAll(".lvm-vg-row");
+    const pvRows = document.querySelectorAll(".lvm-pv-row");
+
+    if (!vgRows.length && !pvRows.length) {
+      return;  // ไม่มี LVM ก็ไม่ต้องทำอะไร
+    }
+
+    // แปลง string ขนาด (เช่น "49.00g", "3G", "556M") เป็น byte
+    // Assumption: หน่วยตัวท้าย K/M/G/T/P = 1024-based
+    function parseSize(raw) {
+      if (raw === null || raw === undefined) return null;
+      const s = String(raw).trim().toLowerCase();
+      if (!s) return null;
+
+      // จับ "ตัวเลข + unit ตัวแรก" แบบง่าย ๆ
+      const m = s.match(/^([\d.]+)\s*([kmgtp]?)/);
+      if (!m) return null;
+
+      const value = parseFloat(m[1]);
+      if (!isFinite(value)) return null;
+
+      const unit = m[2] || "";
+      let mul = 1;
+      switch (unit) {
+        case "k": mul = 1024; break;
+        case "m": mul = 1024 * 1024; break;
+        case "g": mul = 1024 * 1024 * 1024; break;
+        case "t": mul = 1024 * 1024 * 1024 * 1024; break;
+        case "p": mul = 1024 * 1024 * 1024 * 1024 * 1024; break;
+      }
+      return value * mul;
+    }
+
+    function applyForRow(row, sizeKey, freeKey) {
+      if (!row) return;
+
+      const sizeBytes = parseSize(row.dataset[sizeKey]);
+      const freeBytes = parseSize(row.dataset[freeKey]);
+
+      if (!sizeBytes || sizeBytes <= 0 || freeBytes === null) {
+        return;  // กันเคส parse ไม่ได้ / size = 0
+      }
+
+      let used = sizeBytes - freeBytes;
+      if (used < 0) used = 0;
+
+      let pct = sizeBytes > 0 ? (used / sizeBytes) * 100 : 0;
+      if (!isFinite(pct)) pct = 0;
+      pct = Math.max(0, Math.min(100, pct));
+
+      const fill = row.querySelector(".lvm-usage-fill");
+      if (!fill) return;
+
+      const pctInt = Math.round(pct);
+      fill.style.width = pctInt + "%";
+
+      // ตั้งสีตาม threshold
+      fill.classList.remove("lvm-ok", "lvm-warn", "lvm-crit");
+      let cls = "lvm-ok";
+      if (pct >= 90)      cls = "lvm-crit";
+      else if (pct >= 80) cls = "lvm-warn";
+      fill.classList.add(cls);
+
+      // tooltip + attribute ไว้ debug
+      fill.title = `Used ~ ${pct.toFixed(1)}%`;
+      row.setAttribute("data-used-pct", pct.toFixed(1));
+    }
+
+    vgRows.forEach(row => applyForRow(row, "vgSize", "vgFree"));
+    pvRows.forEach(row => applyForRow(row, "pvSize", "pvFree"));
+  })();
+
+  
+  // ====== MOUNTS TOGGLE (Top5 / All) ======
+  (function initMounts() {
+    const full = {{ (mounts_full or [])|tojson }};
+    const top5 = {{ (mounts_top5 or [])|tojson }};
+    let showingAll = false;
+
+    const body  = document.getElementById("mountsBody");
+    const btn   = document.getElementById("toggleMountsBtn");
+    const title = document.getElementById("mountsTitle");
+
+    if (!body || !btn || !title) return;
+
+    function row(m) {
+      const pct = (m.used_pct_num !== null && m.used_pct_num !== undefined)
+        ? m.used_pct_num
+        : parseFloat(String(m.used_pct || "0").replace("%","")) || 0;
+
+      let stat, cls;
+      if (pct >= 100)      { stat = "Full";     cls = "red";   }
+      else if (pct >= 90)  { stat = "Critical"; cls = "red";   }
+      else if (pct >= 80)  { stat = "Degraded"; cls = "amber"; }
+      else                 { stat = "OK";       cls = "green"; }
+
+      return `
+        <tr>
+          <td><span class="status-dot ${cls}"></span> ${stat}</td>
+          <td>${m.mountpoint || ""}</td>
+          <td>${m.fstype     || ""}</td>
+          <td>${pct.toFixed(1)}%</td>
+          <td>${m.note  || ""}</td>
+          <td>${m.size  || ""}</td>
+          <td>${m.used  || ""}</td>
+          <td>${m.avail || ""}</td>
+        </tr>`;
+    }
+
+    function render(rows) {
+      body.innerHTML = rows.map(row).join("");
+    }
+
+    // แสดง top5 เป็นค่าเริ่มต้น
+    render(top5);
+
+    btn.addEventListener("click", () => {
+      showingAll = !showingAll;
+      if (showingAll) {
+        render(full);
+        title.textContent = `All mount points (${full.length})`;
+        btn.textContent   = "Show top 5 only";
+      } else {
+        render(top5);
+        title.textContent = "Top 5 Mounts by Usage (%)";
+        btn.textContent   = `Show all mounts (${full.length})`;
+      }
+    });
+  })();
+</script>
+

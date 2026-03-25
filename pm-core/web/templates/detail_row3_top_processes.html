@@ -1,0 +1,176 @@
+{# /opt/pm-core/web/templates/detail_row3_top_processes.html #}
+<style>
+  /* ใช้ flexbox เพื่อจัดคอลัมน์ให้เป็น 2 คอลัมน์ (โครงสร้างเดิม) */
+  .detail-top-processes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .detail-top-processes .detail-top-process {
+    flex: 1 1 0;
+    min-width: 260px;
+  }
+
+  /* สำหรับการแสดงผลในอุปกรณ์ขนาดเล็กให้เต็มหน้าจอ */
+  @media (max-width: 768px) {
+    .detail-top-processes {
+      flex-direction: column;
+    }
+  }
+
+/* CSS สำหรับ Progress Bar (CRITICAL: NEW STYLES) */
+.proc-usage-bar-wrap {
+    width: 100%;
+    min-width: 100px; 
+    height: 12px; /* ลดความสูงบาร์ให้กระชับ */
+    background: rgba(148, 163, 184, 0.15); 
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 4px; /* จัดกึ่งกลางแนวตั้ง */
+}
+.proc-usage-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    transition: width 0.6s ease-out;
+}
+
+/* Color Coding for Usage (ตามเกณฑ์ 50% / 90%) */
+.proc-bar-low { background-color: #16a34a; } /* Green (<= 50%) */
+.proc-bar-medium { background-color: #f59e0b; } /* Orange (50% < x <= 90%) */
+.proc-bar-high { background-color: #ef4444; } /* Red (> 90%) */
+
+/* จัดตารางให้คอลัมน์ Bar และ Percent แยกกัน */
+.proc-table-custom th:nth-child(2), /* Bar Column */
+.proc-table-custom td:nth-child(2) {
+    width: 45%; 
+    padding-right: 8px !important;
+}
+.proc-table-custom th:nth-child(3), /* Percent Column */
+.proc-table-custom td:nth-child(3) {
+    width: 15%; 
+    white-space: nowrap; /* ห้ามตัดบรรทัด */
+}
+.proc-table-custom td {
+    vertical-align: middle; /* จัดกึ่งกลางแนวตั้ง */
+}
+</style>
+
+<div class="card h-100">
+  
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="card-title mb-0 me-2" style="font-weight:600;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ab0f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="vertical-align: middle;">
+        <line x1="6" y1="9" x2="18" y2="9"></line>
+        <line x1="6" y1="12" x2="18" y2="12"></line>
+        <line x1="6" y1="15" x2="18" y2="15"></line>
+      </svg>
+      TOP PROCESSES
+    </h4>
+    <small class="text-muted">
+        Snapshot: {{ collected_ts or processed_ts or "-" }}
+    </small>
+  </div>
+  
+  <div class="card-body small">
+    
+    <div class="detail-top-processes">
+      
+      <div class="detail-top-process">
+        <h6 class="text-muted mb-1">Top 5 CPU</h6>
+        {% if top_cpu %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 proc-table-custom">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>CPU Usage</th>
+                  <th>%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in top_cpu[:5] %}
+                  {% set cpu_val = p["cpu"] if "cpu" in p.keys() else p[4] %}
+                  {% set cpu_pct = (cpu_val|float) %}
+                  {% set bar_width = [cpu_pct, 100]|min %}
+                  
+                  {# Logic การเปลี่ยนสี: >90% = Red, >50% = Orange, else Green #}
+                  {% set bar_class = "proc-bar-low" %}
+                  {% if cpu_pct > 90.0 %}
+                      {% set bar_class = "proc-bar-high" %}
+                  {% elif cpu_pct > 50.0 %}
+                      {% set bar_class = "proc-bar-medium" %}
+                  {% endif %}
+
+                  <tr>
+                    <td class="text-monospace">
+                      {{ p["cmd"] if "cmd" in p.keys() else p[3] }}
+                    </td>
+                    <td>
+                      <div class="proc-usage-bar-wrap">
+                        <div class="proc-usage-bar {{ bar_class }}" style="width: {{ bar_width|round(1) }}%;">
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ "%.1f"|format(cpu_pct) }}%</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No top CPU data collected.</p>
+        {% endif %}
+      </div>
+
+      <div class="detail-top-process">
+        <h6 class="text-muted mb-1">Top 5 Memory</h6>
+        {% if top_mem %}
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 proc-table-custom">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>MEM Usage</th>
+                  <th>%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in top_mem[:5] %}
+                  {% set mem_val = p["mem"] if "mem" in p.keys() else p[5] %}
+                  {% set mem_pct = (mem_val|float) %}
+                  {% set bar_width = [mem_pct, 100]|min %}
+                  
+                  {# Logic การเปลี่ยนสี: >70% = Red, >30% = Orange, else Green #}
+                  {% set bar_class = "proc-bar-low" %}
+                  {% if mem_pct > 70.0 %}
+                      {% set bar_class = "proc-bar-high" %}
+                  {% elif mem_pct > 30.0 %}
+                      {% set bar_class = "proc-bar-medium" %}
+                  {% endif %}
+
+                  <tr>
+                    <td class="text-monospace">
+                      {{ p["cmd"] if "cmd" in p.keys() else p[3] }}
+                    </td>
+                    <td>
+                      <div class="proc-usage-bar-wrap">
+                        <div class="proc-usage-bar {{ bar_class }}" style="width: {{ bar_width|round(1) }}%;">
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ "%.1f"|format(mem_pct) }}%</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No top memory data collected.</p>
+        {% endif %}
+      </div>
+      
+    </div>
+  </div>
+</div>

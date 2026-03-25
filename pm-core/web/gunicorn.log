@@ -1,0 +1,59 @@
+[2025-12-20 16:04:07 +0700] [2253] [INFO] Starting gunicorn 23.0.0
+[2025-12-20 16:04:07 +0700] [2253] [INFO] Listening at: http://0.0.0.0:5000 (2253)
+[2025-12-20 16:04:07 +0700] [2253] [INFO] Using worker: sync
+[2025-12-20 16:04:07 +0700] [2254] [INFO] Booting worker with pid: 2254
+[2025-12-20 16:04:07 +0700] [2255] [INFO] Booting worker with pid: 2255
+/opt/pm-core/reports/pmcore-summary-20251220-1615.pdf
+/opt/pm-core/reports/pmcore-full-20251221-0118.pdf
+/opt/pm-core/reports/pmcore-summary-20251221-0118.pdf
+[2025-12-21 01:20:42 +0700] [2253] [CRITICAL] WORKER TIMEOUT (pid:2255)
+[2025-12-21 01:20:42 +0700] [2255] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/sync.py", line 133, in handle
+    req = next(parser)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/parser.py", line 41, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/message.py", line 259, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/message.py", line 60, in __init__
+    unused = self.parse(self.unreader)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/message.py", line 271, in parse
+    self.get_data(unreader, buf, stop=True)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/message.py", line 262, in get_data
+    data = unreader.read()
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/http/unreader.py", line 63, in chunk
+    return self.sock.recv(self.mxchunk)
+  File "/usr/local/lib/python3.9/site-packages/gunicorn/workers/base.py", line 204, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2025-12-21 01:20:42 +0700] [2255] [INFO] Worker exiting (pid: 2255)
+[2025-12-21 01:20:42 +0700] [3550] [INFO] Booting worker with pid: 3550
+[2025-12-21 03:28:23 +0700] [2253] [CRITICAL] WORKER TIMEOUT (pid:3550)
+[2025-12-21 03:28:23 +0700] [3550] [INFO] Worker exiting (pid: 3550)
+[2025-12-21 03:28:23 +0700] [2253] [ERROR] Worker (pid:3550) exited with code 1
+[2025-12-21 03:28:23 +0700] [2253] [ERROR] Worker (pid:3550) exited with code 1.
+[2025-12-21 03:28:23 +0700] [3553] [INFO] Booting worker with pid: 3553
+[2025-12-21 09:32:31 +0700] [2253] [CRITICAL] WORKER TIMEOUT (pid:2254)
+[2025-12-21 09:32:31 +0700] [2254] [INFO] Worker exiting (pid: 2254)
+[2025-12-21 09:32:32 +0700] [2253] [ERROR] Worker (pid:2254) exited with code 1
+[2025-12-21 09:32:32 +0700] [2253] [ERROR] Worker (pid:2254) exited with code 1.
+[2025-12-21 09:32:32 +0700] [3566] [INFO] Booting worker with pid: 3566
+[2025-12-21 14:04:05 +0700] [2253] [CRITICAL] WORKER TIMEOUT (pid:3566)
+[2025-12-21 14:04:05 +0700] [3566] [INFO] Worker exiting (pid: 3566)
+[2025-12-21 14:04:06 +0700] [2253] [ERROR] Worker (pid:3566) exited with code 1
+[2025-12-21 14:04:06 +0700] [2253] [ERROR] Worker (pid:3566) exited with code 1.
+[2025-12-21 14:04:06 +0700] [3700] [INFO] Booting worker with pid: 3700
+[2025-12-21 14:35:40 +0700] [2253] [CRITICAL] WORKER TIMEOUT (pid:3553)
+[2025-12-21 14:35:40 +0700] [3553] [INFO] Worker exiting (pid: 3553)
+[2025-12-21 14:35:40 +0700] [2253] [ERROR] Worker (pid:3553) exited with code 1
+[2025-12-21 14:35:40 +0700] [2253] [ERROR] Worker (pid:3553) exited with code 1.
+[2025-12-21 14:35:40 +0700] [3728] [INFO] Booting worker with pid: 3728
+/opt/pm-core/reports/pmcore-summary-20251221-1728.pdf
+/opt/pm-core/reports/pmcore-full-20251221-1729.pdf
+/opt/pm-core/reports/pmcore-summary-20251221-1747.pdf
+/opt/pm-core/reports/pmcore-full-20251221-1748.pdf
+/opt/pm-core/reports/pmcore-select-GSBSERVER-20251221-1750.pdf
+/opt/pm-core/reports/pmcore-select-GSBSERVER_plus_1-20251221-1750.pdf
+/opt/pm-core/reports/pmcore-select-GSBSERVER_plus_1-20251221-1750.pdf
